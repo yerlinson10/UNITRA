@@ -1,7 +1,7 @@
 import DataTable from '@/Components/DataTable';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
-import Modal from '@/Components/Modal';
+import Modal, { ModalBody, ModalFooter, ModalHeader } from '@/Components/Modal';
 import Money from '@/Components/Money';
 import NumberInput from '@/Components/NumberInput';
 import PageHeader from '@/Components/PageHeader';
@@ -276,9 +276,9 @@ export default function InventoryIndex({
 
             <form
                 onSubmit={applyFilter}
-                className="mb-4 flex flex-wrap items-end gap-3"
+                className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
             >
-                <div className="min-w-[220px] flex-1">
+                <div className="min-w-0 flex-1 sm:min-w-[220px]">
                     <label className="mb-1 block text-xs font-medium text-[#6B7069]">
                         Buscar
                     </label>
@@ -289,7 +289,7 @@ export default function InventoryIndex({
                         placeholder="IMEI, marca, modelo, serial…"
                     />
                 </div>
-                <div className="min-w-[180px]">
+                <div className="w-full sm:w-auto sm:min-w-[180px]">
                     <label className="mb-1 block text-xs font-medium text-[#6B7069]">
                         Estado
                     </label>
@@ -312,7 +312,7 @@ export default function InventoryIndex({
                 </div>
                 <button
                     type="submit"
-                    className="rounded-md border border-[#E3E5E0] bg-white px-3 py-2 text-sm font-medium hover:bg-[#F5F6F3] active:scale-[0.97]"
+                    className="min-h-11 w-full rounded-md border border-[#E3E5E0] bg-white px-3 py-2 text-sm font-medium hover:bg-[#F5F6F3] active:scale-[0.97] sm:w-auto"
                 >
                     Filtrar
                 </button>
@@ -368,287 +368,135 @@ export default function InventoryIndex({
             </DataTable>
 
             <Modal show={createOpen} onClose={closeCreate} maxWidth="2xl">
-                <form onSubmit={submitCreate} className="p-5">
-                    <h3 className="font-display text-2xl font-semibold uppercase tracking-wide text-[#111315]">
-                        Nuevo producto
-                    </h3>
-                    <p className="mt-1 text-sm text-[#6B7069]">
-                        Unidad con IMEI — elige o crea su Marca
-                    </p>
-
-                    <div className="mt-4 space-y-4">
-                        <div className="flex flex-wrap gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setMode('existing')}
-                                className={`rounded-md px-3 py-2 text-sm font-medium transition active:scale-[0.97] ${
-                                    mode === 'existing'
-                                        ? 'bg-[#111315] text-white'
-                                        : 'border border-[#E3E5E0] bg-white'
-                                }`}
-                            >
-                                Usar Marca existente
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setMode('new')}
-                                className={`rounded-md px-3 py-2 text-sm font-medium transition active:scale-[0.97] ${
-                                    mode === 'new'
-                                        ? 'bg-[#111315] text-white'
-                                        : 'border border-[#E3E5E0] bg-white'
-                                }`}
-                            >
-                                Crear Marca nueva
-                            </button>
-                        </div>
-
-                        {mode === 'existing' ? (
-                            <div>
-                                <InputLabel value="Marca" />
-                                <Select
-                                    value={createForm.data.product_id || undefined}
-                                    onValueChange={(value) =>
-                                        createForm.setData('product_id', value)
-                                    }
+                <form onSubmit={submitCreate} className="flex min-h-0 flex-1 flex-col">
+                    <ModalHeader
+                        title="Nuevo producto"
+                        subtitle="Unidad con IMEI — elige o crea su Marca"
+                    />
+                    <ModalBody>
+                        <div className="space-y-4">
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setMode('existing')}
+                                    className={`min-h-11 rounded-md px-3 py-2 text-sm font-medium transition active:scale-[0.97] ${
+                                        mode === 'existing'
+                                            ? 'bg-[#111315] text-white'
+                                            : 'border border-[#E3E5E0] bg-white'
+                                    }`}
                                 >
-                                    <SelectTrigger className="mt-1">
-                                        <SelectValue placeholder="Seleccionar…" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {Marcas.map((m) => (
-                                            <SelectItem key={m.id} value={String(m.id)}>
-                                                {m.name ??
-                                                    [m.brand, m.model, m.storage, m.color]
-                                                        .filter(Boolean)
-                                                        .join(' · ')}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <InputError
-                                    message={createForm.errors.product_id}
-                                    className="mt-1"
-                                />
+                                    Usar Marca existente
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setMode('new')}
+                                    className={`min-h-11 rounded-md px-3 py-2 text-sm font-medium transition active:scale-[0.97] ${
+                                        mode === 'new'
+                                            ? 'bg-[#111315] text-white'
+                                            : 'border border-[#E3E5E0] bg-white'
+                                    }`}
+                                >
+                                    Crear Marca nueva
+                                </button>
                             </div>
-                        ) : (
-                            <div className="grid gap-3 sm:grid-cols-2">
+
+                            {mode === 'existing' ? (
                                 <div>
                                     <InputLabel value="Marca" />
-                                    <TextInput
-                                        className="mt-1 block w-full"
-                                        value={createForm.data.brand}
-                                        onChange={(e) =>
-                                            createForm.setData('brand', e.target.value)
+                                    <Select
+                                        value={createForm.data.product_id || undefined}
+                                        onValueChange={(value) =>
+                                            createForm.setData('product_id', value)
                                         }
-                                        required
-                                    />
+                                    >
+                                        <SelectTrigger className="mt-1">
+                                            <SelectValue placeholder="Seleccionar…" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {Marcas.map((m) => (
+                                                <SelectItem key={m.id} value={String(m.id)}>
+                                                    {m.name ??
+                                                        [m.brand, m.model, m.storage, m.color]
+                                                            .filter(Boolean)
+                                                            .join(' · ')}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                     <InputError
-                                        message={createForm.errors.brand}
+                                        message={createForm.errors.product_id}
                                         className="mt-1"
                                     />
                                 </div>
-                                <div>
-                                    <InputLabel value="Modelo" />
-                                    <TextInput
-                                        className="mt-1 block w-full"
-                                        value={createForm.data.model}
-                                        onChange={(e) =>
-                                            createForm.setData('model', e.target.value)
-                                        }
-                                        required
-                                    />
-                                    <InputError
-                                        message={createForm.errors.model}
-                                        className="mt-1"
-                                    />
+                            ) : (
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    <div>
+                                        <InputLabel value="Marca" />
+                                        <TextInput
+                                            className="mt-1 block w-full"
+                                            value={createForm.data.brand}
+                                            onChange={(e) =>
+                                                createForm.setData('brand', e.target.value)
+                                            }
+                                            required
+                                        />
+                                        <InputError
+                                            message={createForm.errors.brand}
+                                            className="mt-1"
+                                        />
+                                    </div>
+                                    <div>
+                                        <InputLabel value="Modelo" />
+                                        <TextInput
+                                            className="mt-1 block w-full"
+                                            value={createForm.data.model}
+                                            onChange={(e) =>
+                                                createForm.setData('model', e.target.value)
+                                            }
+                                            required
+                                        />
+                                        <InputError
+                                            message={createForm.errors.model}
+                                            className="mt-1"
+                                        />
+                                    </div>
+                                    <div>
+                                        <InputLabel value="Almacenamiento" />
+                                        <TextInput
+                                            className="mt-1 block w-full"
+                                            value={createForm.data.storage}
+                                            onChange={(e) =>
+                                                createForm.setData('storage', e.target.value)
+                                            }
+                                            placeholder="128GB"
+                                        />
+                                    </div>
+                                    <div>
+                                        <InputLabel value="Color" />
+                                        <TextInput
+                                            className="mt-1 block w-full"
+                                            value={createForm.data.color}
+                                            onChange={(e) =>
+                                                createForm.setData('color', e.target.value)
+                                            }
+                                        />
+                                    </div>
                                 </div>
-                                <div>
-                                    <InputLabel value="Almacenamiento" />
-                                    <TextInput
-                                        className="mt-1 block w-full"
-                                        value={createForm.data.storage}
-                                        onChange={(e) =>
-                                            createForm.setData('storage', e.target.value)
-                                        }
-                                        placeholder="128GB"
-                                    />
-                                </div>
-                                <div>
-                                    <InputLabel value="Color" />
-                                    <TextInput
-                                        className="mt-1 block w-full"
-                                        value={createForm.data.color}
-                                        onChange={(e) =>
-                                            createForm.setData('color', e.target.value)
-                                        }
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="grid gap-3 sm:grid-cols-2">
-                            <div>
-                                <InputLabel value="IMEI" />
-                                <TextInput
-                                    className="mt-1 block w-full font-mono"
-                                    value={createForm.data.imei}
-                                    onChange={(e) =>
-                                        createForm.setData('imei', e.target.value)
-                                    }
-                                    required
-                                />
-                                <InputError
-                                    message={createForm.errors.imei}
-                                    className="mt-1"
-                                />
-                            </div>
-                            <div>
-                                <InputLabel value="Serial" />
-                                <TextInput
-                                    className="mt-1 block w-full font-mono"
-                                    value={createForm.data.serial}
-                                    onChange={(e) =>
-                                        createForm.setData('serial', e.target.value)
-                                    }
-                                />
-                            </div>
-                            <div className="sm:col-span-2">
-                                <InputLabel value="Condición" />
-                                <TextInput
-                                    className="mt-1 block w-full"
-                                    value={createForm.data.condition_grade}
-                                    onChange={(e) =>
-                                        createForm.setData(
-                                            'condition_grade',
-                                            e.target.value,
-                                        )
-                                    }
-                                    placeholder="Como nuevo / Grado B"
-                                />
-                                <InputError
-                                    message={createForm.errors.condition_grade}
-                                    className="mt-1"
-                                />
-                            </div>
-                            <div>
-                                <InputLabel value="Batería %" />
-                                <NumberInput
-                                    decimals={0}
-                                    className="mt-1 block w-full"
-                                    value={createForm.data.battery_health}
-                                    onValueChange={(value) =>
-                                        createForm.setData('battery_health', value)
-                                    }
-                                />
-                            </div>
-                            <div>
-                                <InputLabel value="Costo" />
-                                <NumberInput
-                                    className="mt-1 block w-full"
-                                    value={createForm.data.cost}
-                                    onValueChange={(value) =>
-                                        createForm.setData('cost', value)
-                                    }
-                                    required
-                                />
-                                <InputError
-                                    message={createForm.errors.cost}
-                                    className="mt-1"
-                                />
-                            </div>
-                            <div>
-                                <InputLabel value="Precio mín. venta" />
-                                <NumberInput
-                                    className="mt-1 block w-full"
-                                    value={createForm.data.min_sale_price}
-                                    onValueChange={(value) =>
-                                        createForm.setData('min_sale_price', value)
-                                    }
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <InputLabel value="Notas" />
-                            <textarea
-                                className="unitra-input mt-1"
-                                rows={2}
-                                value={createForm.data.notes}
-                                onChange={(e) =>
-                                    createForm.setData('notes', e.target.value)
-                                }
-                            />
-                        </div>
-                    </div>
-
-                    <div className="mt-5 flex justify-end gap-2">
-                        <SecondaryButton type="button" onClick={closeCreate}>
-                            Cancelar
-                        </SecondaryButton>
-                        <PrimaryButton disabled={createForm.processing}>
-                            Guardar en inventario
-                        </PrimaryButton>
-                    </div>
-                </form>
-            </Modal>
-
-            <Modal show={!!editing} onClose={closeEdit} maxWidth="2xl">
-                {editing && (
-                    <form onSubmit={submitEdit} className="p-5">
-                        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                                <h3 className="font-display text-2xl font-semibold uppercase tracking-wide text-[#111315]">
-                                    Detalle del producto
-                                </h3>
-                                <p className="mt-1 font-mono text-sm text-[#6B7069]">
-                                    {editing.imei}
-                                </p>
-                            </div>
-                            <StatusBadge status={editing.status as InventoryStatus} />
-                        </div>
-
-                        <div className="space-y-4">
-                            <div>
-                                <InputLabel value="Marca" />
-                                <Select
-                                    value={editForm.data.product_id || undefined}
-                                    onValueChange={(value) =>
-                                        editForm.setData('product_id', value)
-                                    }
-                                >
-                                    <SelectTrigger className="mt-1">
-                                        <SelectValue placeholder="Seleccionar…" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {Marcas.map((m) => (
-                                            <SelectItem key={m.id} value={String(m.id)}>
-                                                {m.name ??
-                                                    [m.brand, m.model, m.storage, m.color]
-                                                        .filter(Boolean)
-                                                        .join(' · ')}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <InputError
-                                    message={editForm.errors.product_id}
-                                    className="mt-1"
-                                />
-                            </div>
+                            )}
 
                             <div className="grid gap-3 sm:grid-cols-2">
                                 <div>
                                     <InputLabel value="IMEI" />
                                     <TextInput
                                         className="mt-1 block w-full font-mono"
-                                        value={editForm.data.imei}
+                                        value={createForm.data.imei}
                                         onChange={(e) =>
-                                            editForm.setData('imei', e.target.value)
+                                            createForm.setData('imei', e.target.value)
                                         }
                                         required
                                     />
                                     <InputError
-                                        message={editForm.errors.imei}
+                                        message={createForm.errors.imei}
                                         className="mt-1"
                                     />
                                 </div>
@@ -656,9 +504,9 @@ export default function InventoryIndex({
                                     <InputLabel value="Serial" />
                                     <TextInput
                                         className="mt-1 block w-full font-mono"
-                                        value={editForm.data.serial}
+                                        value={createForm.data.serial}
                                         onChange={(e) =>
-                                            editForm.setData('serial', e.target.value)
+                                            createForm.setData('serial', e.target.value)
                                         }
                                     />
                                 </div>
@@ -666,9 +514,9 @@ export default function InventoryIndex({
                                     <InputLabel value="Condición" />
                                     <TextInput
                                         className="mt-1 block w-full"
-                                        value={editForm.data.condition_grade}
+                                        value={createForm.data.condition_grade}
                                         onChange={(e) =>
-                                            editForm.setData(
+                                            createForm.setData(
                                                 'condition_grade',
                                                 e.target.value,
                                             )
@@ -676,7 +524,7 @@ export default function InventoryIndex({
                                         placeholder="Como nuevo / Grado B"
                                     />
                                     <InputError
-                                        message={editForm.errors.condition_grade}
+                                        message={createForm.errors.condition_grade}
                                         className="mt-1"
                                     />
                                 </div>
@@ -685,62 +533,34 @@ export default function InventoryIndex({
                                     <NumberInput
                                         decimals={0}
                                         className="mt-1 block w-full"
-                                        value={editForm.data.battery_health}
+                                        value={createForm.data.battery_health}
                                         onValueChange={(value) =>
-                                            editForm.setData('battery_health', value)
+                                            createForm.setData('battery_health', value)
                                         }
                                     />
                                 </div>
                                 <div>
-                                    <InputLabel value="Estado" />
-                                    <Select
-                                        value={editForm.data.status}
+                                    <InputLabel value="Costo" />
+                                    <NumberInput
+                                        className="mt-1 block w-full"
+                                        value={createForm.data.cost}
                                         onValueChange={(value) =>
-                                            editForm.setData('status', value)
+                                            createForm.setData('cost', value)
                                         }
-                                    >
-                                        <SelectTrigger className="mt-1">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {statusOptions.map((opt) => (
-                                                <SelectItem
-                                                    key={opt.value}
-                                                    value={opt.value}
-                                                >
-                                                    {opt.label}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                        required
+                                    />
                                     <InputError
-                                        message={editForm.errors.status}
+                                        message={createForm.errors.cost}
                                         className="mt-1"
                                     />
                                 </div>
-                                {canViewCosts && (
-                                    <div>
-                                        <InputLabel value="Costo" />
-                                        <NumberInput
-                                            className="mt-1 block w-full"
-                                            value={editForm.data.cost}
-                                            onValueChange={(value) =>
-                                                editForm.setData('cost', value)
-                                            }
-                                        />
-                                        <InputError
-                                            message={editForm.errors.cost}
-                                            className="mt-1"
-                                        />
-                                    </div>
-                                )}
                                 <div>
                                     <InputLabel value="Precio mín. venta" />
                                     <NumberInput
                                         className="mt-1 block w-full"
-                                        value={editForm.data.min_sale_price}
+                                        value={createForm.data.min_sale_price}
                                         onValueChange={(value) =>
-                                            editForm.setData('min_sale_price', value)
+                                            createForm.setData('min_sale_price', value)
                                         }
                                     />
                                 </div>
@@ -751,22 +571,209 @@ export default function InventoryIndex({
                                 <textarea
                                     className="unitra-input mt-1"
                                     rows={2}
-                                    value={editForm.data.notes}
+                                    value={createForm.data.notes}
                                     onChange={(e) =>
-                                        editForm.setData('notes', e.target.value)
+                                        createForm.setData('notes', e.target.value)
                                     }
                                 />
                             </div>
                         </div>
+                    </ModalBody>
+                    <ModalFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <SecondaryButton
+                            type="button"
+                            onClick={closeCreate}
+                            className="w-full sm:w-auto"
+                        >
+                            Cancelar
+                        </SecondaryButton>
+                        <PrimaryButton
+                            disabled={createForm.processing}
+                            className="w-full sm:w-auto"
+                        >
+                            Guardar en inventario
+                        </PrimaryButton>
+                    </ModalFooter>
+                </form>
+            </Modal>
 
-                        <div className="mt-5 flex justify-end gap-2">
-                            <SecondaryButton type="button" onClick={closeEdit}>
+            <Modal show={!!editing} onClose={closeEdit} maxWidth="2xl">
+                {editing && (
+                    <form onSubmit={submitEdit} className="flex min-h-0 flex-1 flex-col">
+                        <ModalHeader
+                            title="Detalle del producto"
+                            subtitle={editing.imei}
+                        >
+                            <StatusBadge status={editing.status as InventoryStatus} />
+                        </ModalHeader>
+                        <ModalBody>
+                            <div className="space-y-4">
+                                <div>
+                                    <InputLabel value="Marca" />
+                                    <Select
+                                        value={editForm.data.product_id || undefined}
+                                        onValueChange={(value) =>
+                                            editForm.setData('product_id', value)
+                                        }
+                                    >
+                                        <SelectTrigger className="mt-1">
+                                            <SelectValue placeholder="Seleccionar…" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {Marcas.map((m) => (
+                                                <SelectItem key={m.id} value={String(m.id)}>
+                                                    {m.name ??
+                                                        [m.brand, m.model, m.storage, m.color]
+                                                            .filter(Boolean)
+                                                            .join(' · ')}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <InputError
+                                        message={editForm.errors.product_id}
+                                        className="mt-1"
+                                    />
+                                </div>
+
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    <div>
+                                        <InputLabel value="IMEI" />
+                                        <TextInput
+                                            className="mt-1 block w-full font-mono"
+                                            value={editForm.data.imei}
+                                            onChange={(e) =>
+                                                editForm.setData('imei', e.target.value)
+                                            }
+                                            required
+                                        />
+                                        <InputError
+                                            message={editForm.errors.imei}
+                                            className="mt-1"
+                                        />
+                                    </div>
+                                    <div>
+                                        <InputLabel value="Serial" />
+                                        <TextInput
+                                            className="mt-1 block w-full font-mono"
+                                            value={editForm.data.serial}
+                                            onChange={(e) =>
+                                                editForm.setData('serial', e.target.value)
+                                            }
+                                        />
+                                    </div>
+                                    <div className="sm:col-span-2">
+                                        <InputLabel value="Condición" />
+                                        <TextInput
+                                            className="mt-1 block w-full"
+                                            value={editForm.data.condition_grade}
+                                            onChange={(e) =>
+                                                editForm.setData(
+                                                    'condition_grade',
+                                                    e.target.value,
+                                                )
+                                            }
+                                            placeholder="Como nuevo / Grado B"
+                                        />
+                                        <InputError
+                                            message={editForm.errors.condition_grade}
+                                            className="mt-1"
+                                        />
+                                    </div>
+                                    <div>
+                                        <InputLabel value="Batería %" />
+                                        <NumberInput
+                                            decimals={0}
+                                            className="mt-1 block w-full"
+                                            value={editForm.data.battery_health}
+                                            onValueChange={(value) =>
+                                                editForm.setData('battery_health', value)
+                                            }
+                                        />
+                                    </div>
+                                    <div>
+                                        <InputLabel value="Estado" />
+                                        <Select
+                                            value={editForm.data.status}
+                                            onValueChange={(value) =>
+                                                editForm.setData('status', value)
+                                            }
+                                        >
+                                            <SelectTrigger className="mt-1">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {statusOptions.map((opt) => (
+                                                    <SelectItem
+                                                        key={opt.value}
+                                                        value={opt.value}
+                                                    >
+                                                        {opt.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <InputError
+                                            message={editForm.errors.status}
+                                            className="mt-1"
+                                        />
+                                    </div>
+                                    {canViewCosts && (
+                                        <div>
+                                            <InputLabel value="Costo" />
+                                            <NumberInput
+                                                className="mt-1 block w-full"
+                                                value={editForm.data.cost}
+                                                onValueChange={(value) =>
+                                                    editForm.setData('cost', value)
+                                                }
+                                            />
+                                            <InputError
+                                                message={editForm.errors.cost}
+                                                className="mt-1"
+                                            />
+                                        </div>
+                                    )}
+                                    <div>
+                                        <InputLabel value="Precio mín. venta" />
+                                        <NumberInput
+                                            className="mt-1 block w-full"
+                                            value={editForm.data.min_sale_price}
+                                            onValueChange={(value) =>
+                                                editForm.setData('min_sale_price', value)
+                                            }
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <InputLabel value="Notas" />
+                                    <textarea
+                                        className="unitra-input mt-1"
+                                        rows={2}
+                                        value={editForm.data.notes}
+                                        onChange={(e) =>
+                                            editForm.setData('notes', e.target.value)
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        </ModalBody>
+                        <ModalFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                            <SecondaryButton
+                                type="button"
+                                onClick={closeEdit}
+                                className="w-full sm:w-auto"
+                            >
                                 Cancelar
                             </SecondaryButton>
-                            <PrimaryButton disabled={editForm.processing}>
+                            <PrimaryButton
+                                disabled={editForm.processing}
+                                className="w-full sm:w-auto"
+                            >
                                 Guardar cambios
                             </PrimaryButton>
-                        </div>
+                        </ModalFooter>
                     </form>
                 )}
             </Modal>
