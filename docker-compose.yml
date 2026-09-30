@@ -1,0 +1,86 @@
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "${NGINX_PORT:-8080}:80"
+    volumes:
+      - .:/var/www/html:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - unitra
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/var/www/html
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - unitra
+
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+    volumes:
+      - .:/var/www/html
+    env_file:
+      - .env
+    depends_on:
+      - app
+      - redis
+      - postgres
+    networks:
+      - unitra
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-unitra}
+      POSTGRES_USER: ${DB_USERNAME:-unitra}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-unitra} -d ${DB_DATABASE:-unitra}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - unitra
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - unitra
+
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    ports:
+      - "${GOTENBERG_PORT:-3000}:3000"
+    networks:
+      - unitra
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  unitra:
+    driver: bridge

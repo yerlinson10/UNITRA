@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    --unitra-ink: #111315;
+    --unitra-lime: #b8e34b;
+    --unitra-bg: #f5f6f3;
+    --unitra-surface: #ffffff;
+    --unitra-border: #e3e5e0;
+    --unitra-text-secondary: #6b7069;
+    --unitra-text: #252925;
+    --unitra-available: #22a06b;
+    --unitra-pending: #d97706;
+    --unitra-error: #dc4444;
+    --unitra-font-ui: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --unitra-font-display: 'Barlow Condensed', ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+    html {
+        @apply antialiased;
+        font-family: var(--unitra-font-ui);
+        color: var(--unitra-text);
+        background-color: var(--unitra-bg);
+    }
+
+    h1,
+    h2,
+    h3,
+    .font-display {
+        font-family: var(--unitra-font-display);
+    }
+}
+
+@layer components {
+    .btn-unitra-primary {
+        @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold transition;
+        background-color: var(--unitra-lime);
+        color: var(--unitra-ink);
+    }
+
+    .btn-unitra-primary:hover {
+        opacity: 0.9;
+    }
+
+    .btn-unitra-primary:active {
+        transform: scale(0.97);
+    }
+
+    .btn-unitra-primary:disabled {
+        @apply cursor-not-allowed opacity-50;
+    }
+
+    .unitra-input {
+        @apply block w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1;
+        border-color: var(--unitra-border);
+        color: var(--unitra-text);
+        background-color: var(--unitra-surface);
+    }
+
+    .unitra-input:focus {
+        border-color: var(--unitra-lime);
+        --tw-ring-color: var(--unitra-lime);
+    }
+
+    .unitra-card {
+        @apply rounded-lg border bg-white;
+        border-color: var(--unitra-border);
+    }
+
+    .unitra-table {
+        @apply w-full text-left text-sm;
+    }
+
+    .unitra-table thead {
+        @apply border-b text-xs uppercase tracking-wide;
+        border-color: var(--unitra-border);
+        color: var(--unitra-text-secondary);
+        background-color: #fafbf8;
+    }
+
+    .unitra-table th,
+    .unitra-table td {
+        @apply px-3 py-2.5;
+    }
+
+    .unitra-table tbody tr {
+        @apply border-b;
+        border-color: var(--unitra-border);
+    }
+
+    .unitra-table tbody tr:hover {
+        background-color: #fafbf8;
+    }
+}
