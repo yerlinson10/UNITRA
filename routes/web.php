@@ -26,6 +26,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/inventory/create', [InventoryItemController::class, 'create'])->name('inventory.create');
     Route::post('/inventory', [InventoryItemController::class, 'store'])->name('inventory.store');
     Route::get('/inventory/{inventoryItem}', [InventoryItemController::class, 'show'])->name('inventory.show');
+    Route::put('/inventory/{inventoryItem}', [InventoryItemController::class, 'update'])->name('inventory.update');
     Route::patch('/inventory/{inventoryItem}/status', [InventoryItemController::class, 'updateStatus'])
         ->name('inventory.status');
 

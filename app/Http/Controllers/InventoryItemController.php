@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\InventoryStatus;
 use App\Http\Requests\Inventory\StoreInventoryItemRequest;
+use App\Http\Requests\Inventory\UpdateInventoryItemRequest;
 use App\Http\Requests\Inventory\UpdateInventoryStatusRequest;
 use App\Http\Resources\InventoryItemResource;
 use App\Models\InventoryItem;
@@ -96,16 +97,39 @@ class InventoryItemController extends Controller
             ->with('success', 'Producto agregado al inventario.');
     }
 
-    public function show(Request $request, InventoryItem $inventoryItem): Response
+    public function show(InventoryItem $inventoryItem): RedirectResponse
     {
         $this->authorize('view', $inventoryItem);
 
-        $inventoryItem->load(['product', 'purchaseItem.purchase', 'invoiceItem.invoice']);
+        return redirect()->route('inventory.index', ['item' => $inventoryItem->id]);
+    }
 
-        return Inertia::render('Inventory/Show', [
-            'item' => (new InventoryItemResource($inventoryItem))->resolve(),
-            'canViewCosts' => $request->user()->canViewCosts(),
-        ]);
+    public function update(
+        UpdateInventoryItemRequest $request,
+        InventoryItem $inventoryItem,
+    ): RedirectResponse {
+        $this->authorize('update', $inventoryItem);
+
+        $data = $request->validated();
+
+        if (! $request->user()->canViewCosts()) {
+            unset($data['cost']);
+        } elseif (! array_key_exists('cost', $data) || $data['cost'] === null) {
+            unset($data['cost']);
+        }
+
+        if (
+            $inventoryItem->status === InventoryStatus::Sold
+            && ($data['status'] ?? null) !== InventoryStatus::Sold->value
+        ) {
+            abort_unless($request->user()->isAdmin(), 403, 'Solo un administrador puede revertir un equipo vendido.');
+        }
+
+        $inventoryItem->update($data);
+
+        return redirect()
+            ->route('inventory.index')
+            ->with('success', 'Producto actualizado.');
     }
 
     public function updateStatus(

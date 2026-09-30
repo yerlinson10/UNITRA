@@ -42,12 +42,17 @@ export interface Product {
 export interface InventoryItem {
     id: number;
     imei: string;
+    serial?: string | null;
     product_id: number;
     product?: Product;
     status: InventoryStatus;
+    condition_grade?: string | null;
+    condition?: string | null;
+    battery_health?: number | null;
+    min_sale_price?: number | null;
     min_price?: number | null;
     cost?: number | null;
-    condition?: string | null;
+    origin?: string | null;
     notes?: string | null;
     purchase_id?: number | null;
     store_id?: number | null;

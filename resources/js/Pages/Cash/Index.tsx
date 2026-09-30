@@ -2,9 +2,9 @@ import DataTable from '@/Components/DataTable';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import Money from '@/Components/Money';
+import NumberInput from '@/Components/NumberInput';
 import PageHeader from '@/Components/PageHeader';
 import PrimaryButton from '@/Components/PrimaryButton';
-import TextInput from '@/Components/TextInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { CashMovement, CashSession, PageProps, Paginated } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
@@ -61,14 +61,11 @@ export default function CashIndex({
                     </h2>
                     <div>
                         <InputLabel value="Monto inicial" />
-                        <TextInput
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            className="mt-1 block w-full"
+                        <NumberInput
+                            className="unitra-input mt-1 block w-full"
                             value={openForm.data.opening_amount}
-                            onChange={(e) =>
-                                openForm.setData('opening_amount', e.target.value)
+                            onValueChange={(value) =>
+                                openForm.setData('opening_amount', value)
                             }
                             required
                         />
@@ -95,14 +92,11 @@ export default function CashIndex({
                         </div>
                         <form onSubmit={closeSessionSubmit} className="space-y-2">
                             <InputLabel value="Cierre (contado)" />
-                            <TextInput
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                className="block w-full"
+                            <NumberInput
+                                className="unitra-input block w-full"
                                 value={closeForm.data.closing_amount}
-                                onChange={(e) =>
-                                    closeForm.setData('closing_amount', e.target.value)
+                                onValueChange={(value) =>
+                                    closeForm.setData('closing_amount', value)
                                 }
                                 required
                             />
@@ -113,26 +107,28 @@ export default function CashIndex({
                     </div>
 
                     <DataTable>
-                        <thead>
-                            <tr className="border-b border-[#E3E5E0] text-left text-xs uppercase text-[#6B7069]">
-                                <th className="px-3 py-2">Tipo</th>
-                                <th className="px-3 py-2">Monto</th>
-                                <th className="px-3 py-2">Notas</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {movements.map((m) => (
-                                <tr key={m.id} className="border-b border-[#E3E5E0]">
-                                    <td className="px-3 py-2 text-sm">{String(m.type)}</td>
-                                    <td className="px-3 py-2">
-                                        <Money amount={Number(m.amount)} />
-                                    </td>
-                                    <td className="px-3 py-2 text-sm text-[#6B7069]">
-                                        {m.description ?? '—'}
-                                    </td>
+                        <table className="unitra-table">
+                            <thead>
+                                <tr>
+                                    <th>Tipo</th>
+                                    <th>Monto</th>
+                                    <th>Notas</th>
                                 </tr>
-                            ))}
-                        </tbody>
+                            </thead>
+                            <tbody>
+                                {movements.map((m) => (
+                                    <tr key={m.id}>
+                                        <td className="text-sm">{String(m.type)}</td>
+                                        <td>
+                                            <Money amount={Number(m.amount)} />
+                                        </td>
+                                        <td className="text-sm text-[#6B7069]">
+                                            {m.description ?? '—'}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </DataTable>
                 </div>
             )}
@@ -143,30 +139,32 @@ export default function CashIndex({
                         Historial
                     </h2>
                     <DataTable>
-                        <thead>
-                            <tr className="border-b border-[#E3E5E0] text-left text-xs uppercase text-[#6B7069]">
-                                <th className="px-3 py-2">Estado</th>
-                                <th className="px-3 py-2">Apertura</th>
-                                <th className="px-3 py-2">Cierre</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {sessions.data.map((s) => (
-                                <tr key={s.id} className="border-b border-[#E3E5E0]">
-                                    <td className="px-3 py-2 text-sm">{s.status}</td>
-                                    <td className="px-3 py-2">
-                                        <Money amount={Number(s.opening_amount)} />
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        {s.closing_amount != null ? (
-                                            <Money amount={Number(s.closing_amount)} />
-                                        ) : (
-                                            '—'
-                                        )}
-                                    </td>
+                        <table className="unitra-table">
+                            <thead>
+                                <tr>
+                                    <th>Estado</th>
+                                    <th>Apertura</th>
+                                    <th>Cierre</th>
                                 </tr>
-                            ))}
-                        </tbody>
+                            </thead>
+                            <tbody>
+                                {sessions.data.map((s) => (
+                                    <tr key={s.id}>
+                                        <td className="text-sm">{s.status}</td>
+                                        <td>
+                                            <Money amount={Number(s.opening_amount)} />
+                                        </td>
+                                        <td>
+                                            {s.closing_amount != null ? (
+                                                <Money amount={Number(s.closing_amount)} />
+                                            ) : (
+                                                '—'
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </DataTable>
                 </div>
             )}

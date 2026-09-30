@@ -1,6 +1,7 @@
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import Money from '@/Components/Money';
+import NumberInput from '@/Components/NumberInput';
 import PageHeader from '@/Components/PageHeader';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
@@ -275,21 +276,18 @@ export default function PosIndex({ products = [], Marcas }: Props) {
                                                 {item.imei}
                                             </p>
                                         </div>
-                                        <div className="w-32">
-                                            <TextInput
-                                                type="number"
-                                                step="0.01"
-                                                min="0"
+                                        <div className="w-36">
+                                            <NumberInput
                                                 className="block w-full"
                                                 value={item.sale_price}
-                                                onChange={(e) =>
+                                                onValueChange={(value) =>
                                                     setCart((prev) =>
                                                         prev.map((c) =>
                                                             c.inventory_item_id ===
                                                             item.inventory_item_id
                                                                 ? {
                                                                       ...c,
-                                                                      sale_price: e.target.value,
+                                                                      sale_price: value,
                                                                   }
                                                                 : c,
                                                         ),
@@ -461,14 +459,11 @@ export default function PosIndex({ products = [], Marcas }: Props) {
                             </div>
                             <div>
                                 <InputLabel value="Valor acreditado" />
-                                <TextInput
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
+                                <NumberInput
                                     className="mt-1 block w-full"
                                     value={draft.credited_value}
-                                    onChange={(e) =>
-                                        setDraft({ ...draft, credited_value: e.target.value })
+                                    onValueChange={(value) =>
+                                        setDraft({ ...draft, credited_value: value })
                                     }
                                     required
                                 />

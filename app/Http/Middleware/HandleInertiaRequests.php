@@ -19,6 +19,11 @@ class HandleInertiaRequests extends Middleware
      */
     public function version(Request $request): ?string
     {
+        // Evita 409 Conflict al reconstruir assets en desarrollo.
+        if (app()->isLocal()) {
+            return null;
+        }
+
         return parent::version($request);
     }
 

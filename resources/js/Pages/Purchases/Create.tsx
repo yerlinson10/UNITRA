@@ -1,6 +1,7 @@
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import Money from '@/Components/Money';
+import NumberInput from '@/Components/NumberInput';
 import PageHeader from '@/Components/PageHeader';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
@@ -380,14 +381,11 @@ export default function PurchasesCreate({ products = [] }: Props) {
                                             </div>
                                             <div>
                                                 <InputLabel value="Costo de compra" />
-                                                <TextInput
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0"
-                                                    className="mt-1 block w-full"
+                                                <NumberInput
+                                                    className="unitra-input mt-1 block w-full"
                                                     value={line.cost}
-                                                    onChange={(e) =>
-                                                        updateLine(index, 'cost', e.target.value)
+                                                    onValueChange={(value) =>
+                                                        updateLine(index, 'cost', value)
                                                     }
                                                     placeholder="0.00"
                                                     required
@@ -473,17 +471,15 @@ export default function PurchasesCreate({ products = [] }: Props) {
                                                     </div>
                                                     <div>
                                                         <InputLabel value="Batería %" />
-                                                        <TextInput
-                                                            type="number"
-                                                            min="0"
-                                                            max="100"
-                                                            className="mt-1 block w-full"
+                                                        <NumberInput
+                                                            decimals={0}
+                                                            className="unitra-input mt-1 block w-full"
                                                             value={line.battery_health}
-                                                            onChange={(e) =>
+                                                            onValueChange={(value) =>
                                                                 updateLine(
                                                                     index,
                                                                     'battery_health',
-                                                                    e.target.value,
+                                                                    value,
                                                                 )
                                                             }
                                                             placeholder="85"
@@ -491,17 +487,14 @@ export default function PurchasesCreate({ products = [] }: Props) {
                                                     </div>
                                                     <div>
                                                         <InputLabel value="Precio mín. venta" />
-                                                        <TextInput
-                                                            type="number"
-                                                            step="0.01"
-                                                            min="0"
-                                                            className="mt-1 block w-full"
+                                                        <NumberInput
+                                                            className="unitra-input mt-1 block w-full"
                                                             value={line.min_sale_price}
-                                                            onChange={(e) =>
+                                                            onValueChange={(value) =>
                                                                 updateLine(
                                                                     index,
                                                                     'min_sale_price',
-                                                                    e.target.value,
+                                                                    value,
                                                                 )
                                                             }
                                                             placeholder="0.00"

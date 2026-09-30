@@ -36,7 +36,7 @@ class StorePurchaseRequest extends FormRequest
                 Rule::unique('inventory_items', 'imei')->where(fn ($q) => $q->where('store_id', $storeId)),
             ],
             'items.*.serial' => ['nullable', 'string', 'max:64'],
-            'items.*.condition_grade' => ['nullable', 'string', 'max:20'],
+            'items.*.condition_grade' => ['nullable', 'string', 'max:50'],
             'items.*.battery_health' => ['nullable', 'integer', 'min:0', 'max:100'],
             'items.*.cost' => ['required', 'numeric', 'min:0'],
             'items.*.min_sale_price' => ['nullable', 'numeric', 'min:0'],
