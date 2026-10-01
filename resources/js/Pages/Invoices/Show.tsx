@@ -96,18 +96,36 @@ export default function InvoicesShow({ invoice, auth }: Props) {
                         <tr>
                             <th>Producto</th>
                             <th>IMEI</th>
+                            <th>Garantía</th>
                             <th>Precio</th>
                         </tr>
                     </thead>
                     <tbody>
                         {items.map((item, i) => (
                             <tr key={`${item.inventory_item_id}-${i}`}>
-                                <td>{item.product_label ?? '—'}</td>
+                                <td>
+                                    {item.product_label ??
+                                        item.product_name ??
+                                        '—'}
+                                </td>
                                 <td className="font-mono text-xs">
                                     {item.imei ?? item.inventory_item?.imei ?? '—'}
                                 </td>
+                                <td className="text-xs">
+                                    {item.warranty_expires_at
+                                        ? new Date(
+                                              `${item.warranty_expires_at}T12:00:00`,
+                                          ).toLocaleDateString('es-DO')
+                                        : item.inventory_item?.warranty_expires_at
+                                          ? new Date(
+                                                `${item.inventory_item.warranty_expires_at}T12:00:00`,
+                                            ).toLocaleDateString('es-DO')
+                                          : '—'}
+                                </td>
                                 <td>
-                                    <Money amount={item.price} />
+                                    <Money
+                                        amount={item.price ?? item.sale_price ?? null}
+                                    />
                                 </td>
                             </tr>
                         ))}

@@ -25,6 +25,9 @@ class StoreInventoryUnitService
      *   battery_health?: int|null,
      *   cost: float|int|string,
      *   min_sale_price?: float|int|string|null,
+     *   purchased_at?: string|null,
+     *   warranty_months?: int|null,
+     *   warranty_expires_at?: string|null,
      *   notes?: string|null,
      *   origin?: string|null
      * }  $data
@@ -56,6 +59,9 @@ class StoreInventoryUnitService
                 'battery_health' => $data['battery_health'] ?? null,
                 'cost' => $data['cost'],
                 'min_sale_price' => $data['min_sale_price'] ?? null,
+                'purchased_at' => $data['purchased_at'] ?? now()->toDateString(),
+                'warranty_months' => $data['warranty_months'] ?? 3,
+                'warranty_expires_at' => $data['warranty_expires_at'] ?? null,
                 'status' => InventoryStatus::Available,
                 'origin' => InventoryOrigin::tryFrom($data['origin'] ?? 'other') ?? InventoryOrigin::Other,
                 'notes' => $data['notes'] ?? null,

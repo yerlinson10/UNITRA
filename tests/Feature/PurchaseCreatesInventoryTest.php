@@ -82,6 +82,8 @@ class PurchaseCreatesInventoryTest extends TestCase
         $this->assertTrue($items->every(fn (InventoryItem $item) => $item->status === InventoryStatus::Available));
         $this->assertTrue($items->every(fn (InventoryItem $item) => $item->origin === InventoryOrigin::Purchase));
         $this->assertTrue($items->every(fn (InventoryItem $item) => $item->store_id === $store->id));
+        $this->assertTrue($items->every(fn (InventoryItem $item) => $item->warranty_months === 3));
+        $this->assertTrue($items->every(fn (InventoryItem $item) => $item->purchased_at !== null));
         $this->assertEquals(['356938035643809', '356938035643810'], $items->pluck('imei')->all());
     }
 }

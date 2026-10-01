@@ -97,5 +97,10 @@ class CompleteSaleWithTradeInTest extends TestCase
         $this->assertEquals(InventoryOrigin::TradeIn, $tradeInItem->origin);
         $this->assertEquals(150.00, (float) $tradeInItem->cost);
         $this->assertEquals($store->id, $tradeInItem->store_id);
+        $this->assertNotNull($tradeInItem->purchased_at);
+        $this->assertSame(3, $tradeInItem->warranty_months);
+
+        $this->assertNotNull($sellingItem->sold_at);
+        $this->assertNotNull($sellingItem->warranty_expires_at);
     }
 }

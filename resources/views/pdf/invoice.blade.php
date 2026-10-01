@@ -194,6 +194,7 @@
         <tr>
             <th>Equipo</th>
             <th>IMEI</th>
+            <th>Garantía</th>
             <th style="text-align:right;">Precio</th>
         </tr>
         </thead>
@@ -202,6 +203,12 @@
             <tr>
                 <td>{{ $item->product_name }}</td>
                 <td class="imei">{{ $item->imei }}</td>
+                <td>
+                    @php
+                        $expires = $item->inventoryItem?->warranty_expires_at;
+                    @endphp
+                    {{ $expires ? $expires->format('d/m/Y') : '—' }}
+                </td>
                 <td style="text-align:right;">{{ \App\Support\Money::format($item->sale_price) }}</td>
             </tr>
         @endforeach

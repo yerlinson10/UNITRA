@@ -72,13 +72,11 @@ class ProductController extends Controller
         ]);
     }
 
-    public function edit(Request $request, Product $product): Response
+    public function edit(Request $request, Product $product): RedirectResponse
     {
         $this->ensureStoreAccess($request, $product->store_id);
 
-        return Inertia::render('Products/Edit', [
-            'product' => $product,
-        ]);
+        return redirect()->route('products.index');
     }
 
     public function update(UpdateProductRequest $request, Product $product): RedirectResponse

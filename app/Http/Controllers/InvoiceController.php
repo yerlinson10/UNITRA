@@ -75,6 +75,8 @@ class InvoiceController extends Controller
                 foreach ($invoice->items as $item) {
                     $item->inventoryItem?->update([
                         'status' => InventoryStatus::Available,
+                        'sold_at' => null,
+                        'warranty_expires_at' => null,
                     ]);
                 }
 

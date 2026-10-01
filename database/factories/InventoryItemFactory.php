@@ -25,6 +25,10 @@ class InventoryItemFactory extends Factory
             'battery_health' => fake()->numberBetween(80, 100),
             'cost' => fake()->randomFloat(2, 100, 800),
             'min_sale_price' => fake()->randomFloat(2, 150, 1000),
+            'purchased_at' => now()->toDateString(),
+            'warranty_months' => 3,
+            'sold_at' => null,
+            'warranty_expires_at' => null,
             'status' => InventoryStatus::Available,
             'origin' => InventoryOrigin::Purchase,
             'notes' => null,
@@ -35,6 +39,7 @@ class InventoryItemFactory extends Factory
     {
         return $this->state(fn () => [
             'status' => InventoryStatus::Available,
+            'sold_at' => null,
         ]);
     }
 
@@ -42,6 +47,8 @@ class InventoryItemFactory extends Factory
     {
         return $this->state(fn () => [
             'status' => InventoryStatus::Sold,
+            'sold_at' => now(),
+            'warranty_expires_at' => now()->addMonths(3)->toDateString(),
         ]);
     }
 }

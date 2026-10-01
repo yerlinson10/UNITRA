@@ -19,6 +19,7 @@ const EXPAND_DISTANCE = 100;
 const COLLAPSE_DISTANCE = 110;
 const VELOCITY_COMMIT = 1400;
 const SHEET_EASE = '320ms cubic-bezier(0.22, 1, 0.36, 1)';
+const EXIT_MS = 360;
 const DECELERATION = 0.998;
 
 function project(velocity: number, decelerationRate = DECELERATION) {
@@ -29,6 +30,20 @@ function rubberband(overshoot: number, dimension: number, constant = 0.55) {
     return (
         (overshoot * dimension * constant) /
         (dimension + constant * Math.abs(overshoot))
+    );
+}
+
+function prefersReducedMotion() {
+    return (
+        typeof window !== 'undefined' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    );
+}
+
+function isMobileSheet() {
+    return (
+        typeof window !== 'undefined' &&
+        window.matchMedia('(max-width: 639px)').matches
     );
 }
 
@@ -44,12 +59,6 @@ export default function Modal({
     closeable?: boolean;
     onClose: CallableFunction;
 }>) {
-    const close = () => {
-        if (closeable) {
-            onClose();
-        }
-    };
-
     const maxWidthClass = {
         sm: 'sm:max-w-sm',
         md: 'sm:max-w-md',
@@ -60,6 +69,10 @@ export default function Modal({
 
     const panelRef = useRef<HTMLDivElement>(null);
     const collapsedHeightRef = useRef<number | null>(null);
+    const closingRef = useRef(false);
+
+    // Local visibility so Cancel / backdrop can finish the slide before unmount.
+    const [open, setOpen] = useState(show);
     const [expanded, setExpanded] = useState(false);
     const [dragY, setDragY] = useState(0);
     const [dragHeight, setDragHeight] = useState<number | null>(null);
@@ -77,65 +90,97 @@ export default function Modal({
         wasExpanded: false,
     });
 
-    useEffect(() => {
-        if (show) {
-            setExpanded(false);
-            setDragY(0);
-            setDragHeight(null);
-            setDragging(false);
-            setExitingByDrag(false);
-            collapsedHeightRef.current = null;
-            gesture.current.active = false;
-            return;
-        }
-
-        setDragging(false);
-        gesture.current.active = false;
-
-        // Keep the drag offset through the leave animation so the sheet
-        // doesn't snap back up before sliding out.
-        const timer = window.setTimeout(() => {
-            setExpanded(false);
-            setDragY(0);
-            setDragHeight(null);
-            setExitingByDrag(false);
-            collapsedHeightRef.current = null;
-        }, 360);
-
-        return () => window.clearTimeout(timer);
-    }, [show]);
-
-    const prefersReducedMotion = () =>
-        typeof window !== 'undefined' &&
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    const isMobileSheet = () =>
-        typeof window !== 'undefined' &&
-        window.matchMedia('(max-width: 639px)').matches;
-
-    const dismissFromDrag = (fromY: number, keepHeight = false) => {
-        setDragging(false);
-        setExitingByDrag(true);
+    const resetSheet = () => {
         setExpanded(false);
+        setDragY(0);
+        setDragHeight(null);
+        setDragging(false);
+        setExitingByDrag(false);
+        collapsedHeightRef.current = null;
+        gesture.current.active = false;
+        closingRef.current = false;
+    };
 
-        if (!keepHeight) {
-            setDragHeight(null);
+    const playSlideExit = (fromY = 0) => {
+        const panel = panelRef.current;
+        const liveHeight = panel?.getBoundingClientRect().height ?? null;
+
+        setExitingByDrag(true);
+        setDragging(false);
+        // Freeze current size so collapsing expanded → default doesn't jump.
+        if (liveHeight != null) {
+            setDragHeight(liveHeight);
         }
-
-        const startY = Math.max(fromY, 0);
-        setDragY(startY);
+        setExpanded(false);
+        setDragY(Math.max(fromY, 0));
 
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
                 setDragY(window.innerHeight);
             });
         });
+    };
 
-        close();
+    const finishClose = () => {
+        if (!closeable || closingRef.current) {
+            return;
+        }
+        closingRef.current = true;
+
+        if (isMobileSheet() && !prefersReducedMotion()) {
+            playSlideExit(0);
+        }
+
+        onClose();
+    };
+
+    useEffect(() => {
+        if (show) {
+            setOpen(true);
+            resetSheet();
+            return;
+        }
+
+        if (!open) {
+            return;
+        }
+
+        const mobileExit = isMobileSheet() && !prefersReducedMotion();
+
+        // Cancel / parent close: start the slide if drag-dismiss didn't already.
+        if (!closingRef.current) {
+            closingRef.current = true;
+            if (mobileExit) {
+                playSlideExit(0);
+            }
+        }
+
+        const delay = mobileExit ? EXIT_MS : 200;
+        const timer = window.setTimeout(() => {
+            // Unmount only — keep dragY off-screen so leave doesn't snap back.
+            setOpen(false);
+        }, delay);
+
+        return () => window.clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to show flips
+    }, [show]);
+
+    const dismissFromDrag = (fromY: number) => {
+        if (!closeable || closingRef.current) {
+            return;
+        }
+        closingRef.current = true;
+        playSlideExit(fromY);
+        onClose();
     };
 
     const onDragStart = (event: ReactPointerEvent<HTMLDivElement>) => {
-        if (!isMobileSheet() || prefersReducedMotion() || event.button !== 0) {
+        if (
+            !isMobileSheet() ||
+            prefersReducedMotion() ||
+            event.button !== 0 ||
+            closingRef.current
+        ) {
             return;
         }
 
@@ -181,7 +226,6 @@ export default function Modal({
         const viewportH = window.innerHeight;
 
         if (g.wasExpanded) {
-            // Mirror expand: height follows the finger 1:1. No translate while collapsing.
             if (delta <= 0) {
                 setDragY(-rubberband(-delta, viewportH * 0.2));
                 setDragHeight(g.startHeight);
@@ -200,7 +244,6 @@ export default function Modal({
             return;
         }
 
-        // Dragging up from default → grow toward fullscreen
         setDragY(0);
         setDragHeight(Math.min(viewportH, g.startHeight + -delta));
     };
@@ -217,7 +260,6 @@ export default function Modal({
             return;
         }
 
-        // Hold the live height, then ease into the snap so collapse isn't abrupt.
         setDragHeight(current);
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
@@ -229,7 +271,7 @@ export default function Modal({
                             Math.min(window.innerHeight * 0.9, current),
                     );
                 }
-                window.setTimeout(() => setDragHeight(null), 360);
+                window.setTimeout(() => setDragHeight(null), EXIT_MS);
             });
         });
     };
@@ -256,15 +298,12 @@ export default function Modal({
         const flickUp = g.velocityY < -VELOCITY_COMMIT;
 
         if (g.wasExpanded) {
-            // From fullscreen: a normal drag only collapses. Closing needs a
-            // long pull (almost half the screen) — never a light flick.
             const shouldClose =
                 projected > window.innerHeight * 0.45 ||
                 delta > window.innerHeight * 0.45;
 
             if (shouldClose) {
-                // Keep the live height and slide down from here — no snap-back.
-                dismissFromDrag(0, true);
+                dismissFromDrag(0);
                 return;
             }
 
@@ -325,25 +364,38 @@ export default function Modal({
           : undefined;
 
     return (
-        <Transition show={show} leave="duration-200">
+        <Transition show={open} leave={exitingByDrag ? 'duration-0' : 'duration-200'}>
             <Dialog
                 as="div"
                 id="modal"
                 className="fixed inset-0 z-50 flex transform items-end justify-center sm:items-center sm:overflow-y-auto sm:px-4 sm:py-6"
-                onClose={close}
+                onClose={finishClose}
             >
                 <TransitionChild
                     enter="ease-out duration-300 motion-reduce:duration-150"
                     enterFrom="opacity-0"
                     enterTo="opacity-100"
-                    leave="ease-in duration-200 motion-reduce:duration-150"
+                    leave={
+                        exitingByDrag
+                            ? 'duration-0'
+                            : 'ease-in duration-200 motion-reduce:duration-150'
+                    }
                     leaveFrom="opacity-100"
                     leaveTo="opacity-0"
                 >
                     <div
                         className="absolute inset-0 bg-black/55 backdrop-blur-md"
                         style={{
-                            opacity: 1 - dismissProgress * 0.55,
+                            opacity: exitingByDrag
+                                ? Math.max(
+                                      0,
+                                      1 -
+                                          dragY /
+                                              (typeof window !== 'undefined'
+                                                  ? window.innerHeight
+                                                  : 1),
+                                  )
+                                : 1 - dismissProgress * 0.55,
                         }}
                     />
                 </TransitionChild>
@@ -352,9 +404,17 @@ export default function Modal({
                     enter="ease-out duration-300 motion-reduce:duration-150"
                     enterFrom="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95 motion-reduce:translate-y-0 motion-reduce:scale-100"
                     enterTo="opacity-100 translate-y-0 sm:scale-100"
-                    leave={`ease-in motion-reduce:duration-150 ${exitingByDrag ? 'duration-[320ms]' : 'duration-200'}`}
+                    leave={
+                        exitingByDrag
+                            ? 'duration-0'
+                            : 'ease-in duration-200 motion-reduce:duration-150'
+                    }
                     leaveFrom="opacity-100"
-                    leaveTo={`opacity-0 ${exitingByDrag ? '' : 'translate-y-full sm:translate-y-0 sm:scale-95 motion-reduce:translate-y-0 motion-reduce:scale-100'}`}
+                    leaveTo={
+                        exitingByDrag
+                            ? 'opacity-0'
+                            : 'opacity-0 translate-y-full sm:translate-y-0 sm:scale-95 motion-reduce:translate-y-0 motion-reduce:scale-100'
+                    }
                 >
                     <DialogPanel
                         ref={panelRef}

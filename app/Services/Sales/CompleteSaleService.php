@@ -137,7 +137,7 @@ class CompleteSaleService
                     'cost_snapshot' => $item->cost,
                 ]);
 
-                $item->update(['status' => InventoryStatus::Sold]);
+                $item->markSold();
             }
 
             foreach ($tradeIns as $tradeInData) {
@@ -154,6 +154,9 @@ class CompleteSaleService
                     'battery_health' => $tradeInData['battery_health'] ?? null,
                     'cost' => $tradeInData['credited_value'],
                     'min_sale_price' => $tradeInData['min_sale_price'] ?? null,
+                    'purchased_at' => now()->toDateString(),
+                    'warranty_months' => $tradeInData['warranty_months'] ?? 3,
+                    'warranty_expires_at' => $tradeInData['warranty_expires_at'] ?? null,
                     'status' => InventoryStatus::Available,
                     'origin' => InventoryOrigin::TradeIn,
                     'notes' => $tradeInData['notes'] ?? null,

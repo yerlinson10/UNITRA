@@ -58,6 +58,20 @@ function conditionOf(item: Row) {
     return item.condition_grade ?? item.condition ?? null;
 }
 
+function todayDate(): string {
+    const d = new Date();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${month}-${day}`;
+}
+
+function formatDate(value?: string | null): string {
+    if (!value) return '—';
+    const d = new Date(value.includes('T') ? value : `${value}T12:00:00`);
+    if (Number.isNaN(d.getTime())) return value;
+    return d.toLocaleDateString('es-DO');
+}
+
 export default function InventoryIndex({
     items,
     Marcas = [],
@@ -87,6 +101,9 @@ export default function InventoryIndex({
         battery_health: '',
         cost: '',
         min_sale_price: '',
+        purchased_at: todayDate(),
+        warranty_months: '3',
+        warranty_expires_at: '',
         notes: '',
         origin: 'other',
     });
@@ -99,6 +116,9 @@ export default function InventoryIndex({
         battery_health: '',
         cost: '',
         min_sale_price: '',
+        purchased_at: todayDate(),
+        warranty_months: '3',
+        warranty_expires_at: '',
         status: 'available',
         notes: '',
     });
@@ -134,6 +154,9 @@ export default function InventoryIndex({
     const openCreate = () => {
         createForm.reset();
         createForm.clearErrors();
+        createForm.setData('purchased_at', todayDate());
+        createForm.setData('warranty_months', '3');
+        createForm.setData('warranty_expires_at', '');
         setMode(Marcas.length > 0 ? 'existing' : 'new');
         setCreateOpen(true);
     };
@@ -155,6 +178,14 @@ export default function InventoryIndex({
                     : item.min_price != null
                       ? String(item.min_price)
                       : '',
+            purchased_at: item.purchased_at
+                ? String(item.purchased_at).slice(0, 10)
+                : todayDate(),
+            warranty_months:
+                item.warranty_months != null ? String(item.warranty_months) : '3',
+            warranty_expires_at: item.warranty_expires_at
+                ? String(item.warranty_expires_at).slice(0, 10)
+                : '',
             status: String(item.status ?? 'available'),
             notes: item.notes ?? '',
         });
@@ -184,6 +215,15 @@ export default function InventoryIndex({
     const submitCreate: FormEventHandler = (e) => {
         e.preventDefault();
         createForm.transform((form) => {
+            const warrantyFields = {
+                purchased_at: form.purchased_at,
+                warranty_months:
+                    form.warranty_months !== ''
+                        ? Number(form.warranty_months)
+                        : 3,
+                warranty_expires_at: form.warranty_expires_at || null,
+            };
+
             if (mode === 'existing') {
                 return {
                     product_id: Number(form.product_id),
@@ -197,6 +237,7 @@ export default function InventoryIndex({
                     min_sale_price: form.min_sale_price
                         ? Number(form.min_sale_price)
                         : null,
+                    ...warrantyFields,
                     notes: form.notes || null,
                     origin: form.origin,
                 };
@@ -217,6 +258,7 @@ export default function InventoryIndex({
                 min_sale_price: form.min_sale_price
                     ? Number(form.min_sale_price)
                     : null,
+                ...warrantyFields,
                 notes: form.notes || null,
                 origin: form.origin,
             };
@@ -248,6 +290,10 @@ export default function InventoryIndex({
             min_sale_price: form.min_sale_price
                 ? Number(form.min_sale_price)
                 : null,
+            purchased_at: form.purchased_at,
+            warranty_months:
+                form.warranty_months !== '' ? Number(form.warranty_months) : 3,
+            warranty_expires_at: form.warranty_expires_at || null,
             status: form.status,
             notes: form.notes || null,
         }));
@@ -324,7 +370,9 @@ export default function InventoryIndex({
                         <tr>
                             <th>IMEI</th>
                             <th>Marca</th>
-                            <th>Condición</th>
+                            <th>Compra</th>
+                            <th>Garantía</th>
+                            <th>Vendido</th>
                             <th>Estado</th>
                             <th>Precio mín.</th>
                             {canViewCosts && <th>Costo</th>}
@@ -338,7 +386,19 @@ export default function InventoryIndex({
                                     {item.imei}
                                 </td>
                                 <td>{labelOf(item)}</td>
-                                <td>{conditionOf(item) ?? '—'}</td>
+                                <td className="whitespace-nowrap text-xs">
+                                    {formatDate(item.purchased_at)}
+                                </td>
+                                <td className="whitespace-nowrap text-xs">
+                                    {item.warranty_expires_at
+                                        ? formatDate(item.warranty_expires_at)
+                                        : item.warranty_months != null
+                                          ? `${item.warranty_months} mes${item.warranty_months === 1 ? '' : 'es'}`
+                                          : '—'}
+                                </td>
+                                <td className="whitespace-nowrap text-xs">
+                                    {formatDate(item.sold_at)}
+                                </td>
                                 <td>
                                     <StatusBadge status={item.status as InventoryStatus} />
                                 </td>
@@ -356,7 +416,7 @@ export default function InventoryIndex({
                                     <button
                                         type="button"
                                         onClick={() => openEdit(item)}
-                                        className="text-sm font-medium underline-offset-2 hover:underline"
+                                        className="min-h-11 text-sm font-medium underline-offset-2 hover:underline"
                                     >
                                         Detalle
                                     </button>
@@ -564,6 +624,61 @@ export default function InventoryIndex({
                                         }
                                     />
                                 </div>
+                                <div>
+                                    <InputLabel value="Fecha de compra" />
+                                    <TextInput
+                                        type="date"
+                                        className="mt-1 block w-full min-h-11"
+                                        value={createForm.data.purchased_at}
+                                        onChange={(e) =>
+                                            createForm.setData(
+                                                'purchased_at',
+                                                e.target.value,
+                                            )
+                                        }
+                                        required
+                                    />
+                                    <InputError
+                                        message={createForm.errors.purchased_at}
+                                        className="mt-1"
+                                    />
+                                </div>
+                                <div>
+                                    <InputLabel value="Meses de garantía" />
+                                    <NumberInput
+                                        decimals={0}
+                                        className="mt-1 block w-full min-h-11"
+                                        value={createForm.data.warranty_months}
+                                        onValueChange={(value) =>
+                                            createForm.setData('warranty_months', value)
+                                        }
+                                    />
+                                    <InputError
+                                        message={createForm.errors.warranty_months}
+                                        className="mt-1"
+                                    />
+                                </div>
+                                <div className="sm:col-span-2">
+                                    <InputLabel value="Vence garantía" />
+                                    <TextInput
+                                        type="date"
+                                        className="mt-1 block w-full min-h-11"
+                                        value={createForm.data.warranty_expires_at}
+                                        onChange={(e) =>
+                                            createForm.setData(
+                                                'warranty_expires_at',
+                                                e.target.value,
+                                            )
+                                        }
+                                    />
+                                    <p className="mt-1 text-xs text-[#6B7069]">
+                                        Si lo dejas vacío, se calcula al vender
+                                    </p>
+                                    <InputError
+                                        message={createForm.errors.warranty_expires_at}
+                                        className="mt-1"
+                                    />
+                                </div>
                             </div>
 
                             <div>
@@ -744,6 +859,74 @@ export default function InventoryIndex({
                                             }
                                         />
                                     </div>
+                                    <div>
+                                        <InputLabel value="Fecha de compra" />
+                                        <TextInput
+                                            type="date"
+                                            className="mt-1 block w-full min-h-11"
+                                            value={editForm.data.purchased_at}
+                                            onChange={(e) =>
+                                                editForm.setData(
+                                                    'purchased_at',
+                                                    e.target.value,
+                                                )
+                                            }
+                                            required
+                                        />
+                                        <InputError
+                                            message={editForm.errors.purchased_at}
+                                            className="mt-1"
+                                        />
+                                    </div>
+                                    <div>
+                                        <InputLabel value="Meses de garantía" />
+                                        <NumberInput
+                                            decimals={0}
+                                            className="mt-1 block w-full min-h-11"
+                                            value={editForm.data.warranty_months}
+                                            onValueChange={(value) =>
+                                                editForm.setData(
+                                                    'warranty_months',
+                                                    value,
+                                                )
+                                            }
+                                        />
+                                        <InputError
+                                            message={editForm.errors.warranty_months}
+                                            className="mt-1"
+                                        />
+                                    </div>
+                                    <div className="sm:col-span-2">
+                                        <InputLabel value="Vence garantía" />
+                                        <TextInput
+                                            type="date"
+                                            className="mt-1 block w-full min-h-11"
+                                            value={editForm.data.warranty_expires_at}
+                                            onChange={(e) =>
+                                                editForm.setData(
+                                                    'warranty_expires_at',
+                                                    e.target.value,
+                                                )
+                                            }
+                                        />
+                                        <p className="mt-1 text-xs text-[#6B7069]">
+                                            Si lo dejas vacío, se calcula al vender
+                                        </p>
+                                        <InputError
+                                            message={
+                                                editForm.errors.warranty_expires_at
+                                            }
+                                            className="mt-1"
+                                        />
+                                    </div>
+                                    {editing?.sold_at && (
+                                        <div className="sm:col-span-2">
+                                            <InputLabel value="Fecha de venta" />
+                                            <p className="mt-1 min-h-11 rounded-md border border-[#E3E5E0] bg-[#F5F6F3] px-3 py-2 text-sm">
+                                                {formatDate(editing.sold_at)}
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div>

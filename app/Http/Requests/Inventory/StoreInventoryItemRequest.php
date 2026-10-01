@@ -38,6 +38,9 @@ class StoreInventoryItemRequest extends FormRequest
             'battery_health' => ['nullable', 'integer', 'min:1', 'max:100'],
             'cost' => ['required', 'numeric', 'min:0'],
             'min_sale_price' => ['nullable', 'numeric', 'min:0'],
+            'purchased_at' => ['required', 'date'],
+            'warranty_months' => ['nullable', 'integer', 'min:0', 'max:120'],
+            'warranty_expires_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'origin' => ['nullable', Rule::enum(InventoryOrigin::class)],
         ];

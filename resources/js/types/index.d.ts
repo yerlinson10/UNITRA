@@ -52,6 +52,10 @@ export interface InventoryItem {
     min_sale_price?: number | null;
     min_price?: number | null;
     cost?: number | null;
+    purchased_at?: string | null;
+    warranty_months?: number | null;
+    sold_at?: string | null;
+    warranty_expires_at?: string | null;
     origin?: string | null;
     notes?: string | null;
     purchase_id?: number | null;
@@ -85,7 +89,10 @@ export interface SaleItem {
     inventory_item_id: number;
     imei?: string;
     product_label?: string;
-    price: number;
+    product_name?: string;
+    price?: number;
+    sale_price?: number;
+    warranty_expires_at?: string | null;
     inventory_item?: InventoryItem;
 }
 

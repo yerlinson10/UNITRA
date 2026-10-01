@@ -34,10 +34,24 @@ class InvoiceResource extends JsonResource
                     'id' => $item->id,
                     'inventory_item_id' => $item->inventory_item_id,
                     'product_name' => $item->product_name,
+                    'product_label' => $item->product_name,
                     'imei' => $item->imei,
                     'sale_price' => $item->sale_price,
+                    'price' => $item->sale_price,
+                    'warranty_expires_at' => $item->inventoryItem?->warranty_expires_at?->toDateString(),
+                    'sold_at' => $item->inventoryItem?->sold_at?->toIso8601String(),
                     'cost_snapshot' => $canViewCosts ? $item->cost_snapshot : null,
                     'margin' => $canViewCosts ? $item->margin() : null,
+                    'inventory_item' => $item->relationLoaded('inventoryItem') && $item->inventoryItem
+                        ? [
+                            'id' => $item->inventoryItem->id,
+                            'imei' => $item->inventoryItem->imei,
+                            'purchased_at' => $item->inventoryItem->purchased_at?->toDateString(),
+                            'warranty_months' => $item->inventoryItem->warranty_months,
+                            'sold_at' => $item->inventoryItem->sold_at?->toIso8601String(),
+                            'warranty_expires_at' => $item->inventoryItem->warranty_expires_at?->toDateString(),
+                        ]
+                        : null,
                 ]);
             }),
             'trade_ins' => $this->whenLoaded('tradeIns'),

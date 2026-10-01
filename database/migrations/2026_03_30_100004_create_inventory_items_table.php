@@ -18,6 +18,10 @@ return new class extends Migration
             $table->unsignedTinyInteger('battery_health')->nullable();
             $table->decimal('cost', 12, 2);
             $table->decimal('min_sale_price', 12, 2)->nullable();
+            $table->date('purchased_at');
+            $table->unsignedTinyInteger('warranty_months')->default(3);
+            $table->dateTime('sold_at')->nullable();
+            $table->date('warranty_expires_at')->nullable();
             $table->string('status')->default('available');
             $table->string('origin')->default('purchase');
             $table->unsignedBigInteger('purchase_item_id')->nullable();

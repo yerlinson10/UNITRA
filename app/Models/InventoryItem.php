@@ -24,6 +24,10 @@ class InventoryItem extends Model
         'battery_health',
         'cost',
         'min_sale_price',
+        'purchased_at',
+        'warranty_months',
+        'sold_at',
+        'warranty_expires_at',
         'status',
         'origin',
         'purchase_item_id',
@@ -36,6 +40,10 @@ class InventoryItem extends Model
             'battery_health' => 'integer',
             'cost' => 'decimal:2',
             'min_sale_price' => 'decimal:2',
+            'purchased_at' => 'date',
+            'warranty_months' => 'integer',
+            'sold_at' => 'datetime',
+            'warranty_expires_at' => 'date',
             'status' => InventoryStatus::class,
             'origin' => InventoryOrigin::class,
         ];
@@ -83,6 +91,25 @@ class InventoryItem extends Model
 
     public function markSold(): void
     {
-        $this->update(['status' => InventoryStatus::Sold]);
+        $soldAt = now();
+
+        $payload = [
+            'status' => InventoryStatus::Sold,
+            'sold_at' => $soldAt,
+        ];
+
+        if ($this->warranty_expires_at === null && $this->warranty_months) {
+            $payload['warranty_expires_at'] = $soldAt->copy()->addMonths((int) $this->warranty_months)->toDateString();
+        }
+
+        $this->update($payload);
+    }
+
+    public function clearSaleDates(): void
+    {
+        $this->update([
+            'sold_at' => null,
+            'warranty_expires_at' => null,
+        ]);
     }
 }

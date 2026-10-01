@@ -31,6 +31,8 @@ class StoreInventoryUnitTest extends TestCase
             'cost' => 12000,
             'min_sale_price' => 15000,
             'condition_grade' => 'Grado A',
+            'purchased_at' => now()->toDateString(),
+            'warranty_months' => 3,
         ]);
 
         $item = InventoryItem::query()->where('imei', '359999999999999')->first();
@@ -55,6 +57,7 @@ class StoreInventoryUnitTest extends TestCase
             'color' => 'Negro',
             'imei' => '358888888888888',
             'cost' => 22000,
+            'purchased_at' => now()->toDateString(),
         ])->assertRedirect();
 
         $this->assertDatabaseHas('products', [

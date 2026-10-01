@@ -23,7 +23,7 @@ class GenerateInvoicePdf implements ShouldQueue
     public function handle(GotenbergClient $gotenberg): void
     {
         $invoice = Invoice::query()
-            ->with(['items', 'tradeIns', 'store', 'user'])
+            ->with(['items.inventoryItem', 'tradeIns', 'store', 'user'])
             ->findOrFail($this->invoiceId);
 
         $html = view('pdf.invoice', [

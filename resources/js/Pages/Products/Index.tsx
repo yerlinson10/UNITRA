@@ -8,7 +8,7 @@ import SecondaryButton from '@/Components/SecondaryButton';
 import TextInput from '@/Components/TextInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps, Paginated, Product } from '@/types';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
@@ -16,38 +16,72 @@ type Props = PageProps<{
     products?: Paginated<Product>;
 }>;
 
-function productLabel(p: Product) {
-    return [p.brand, p.model, p.storage, p.color].filter(Boolean).join(' · ');
-}
+type BrandForm = {
+    brand: string;
+    model: string;
+    storage: string;
+    color: string;
+};
+
+const emptyForm: BrandForm = {
+    brand: '',
+    model: '',
+    storage: '',
+    color: '',
+};
 
 export default function ProductsIndex({ products }: Props) {
     const rows = products?.data ?? [];
-    const [open, setOpen] = useState(false);
+    const [createOpen, setCreateOpen] = useState(false);
+    const [editing, setEditing] = useState<Product | null>(null);
 
-    const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
-        brand: '',
-        model: '',
-        storage: '',
-        color: '',
-    });
+    const createForm = useForm<BrandForm>({ ...emptyForm });
+    const editForm = useForm<BrandForm>({ ...emptyForm });
 
-    const closeModal = () => {
-        setOpen(false);
-        clearErrors();
-        reset();
+    const closeCreate = () => {
+        setCreateOpen(false);
+        createForm.clearErrors();
+        createForm.reset();
     };
 
-    const openModal = () => {
-        reset();
-        clearErrors();
-        setOpen(true);
+    const openCreate = () => {
+        createForm.reset();
+        createForm.clearErrors();
+        setCreateOpen(true);
     };
 
-    const submit: FormEventHandler = (e) => {
+    const closeEdit = () => {
+        setEditing(null);
+        editForm.clearErrors();
+        editForm.reset();
+    };
+
+    const openEdit = (product: Product) => {
+        editForm.clearErrors();
+        editForm.setData({
+            brand: product.brand ?? '',
+            model: product.model ?? '',
+            storage: product.storage ?? '',
+            color: product.color ?? '',
+        });
+        setEditing(product);
+    };
+
+    const submitCreate: FormEventHandler = (e) => {
         e.preventDefault();
-        post('/products', {
+        createForm.post('/products', {
             preserveScroll: true,
-            onSuccess: () => closeModal(),
+            onSuccess: () => closeCreate(),
+        });
+    };
+
+    const submitEdit: FormEventHandler = (e) => {
+        e.preventDefault();
+        if (!editing) return;
+
+        editForm.put(`/products/${editing.id}`, {
+            preserveScroll: true,
+            onSuccess: () => closeEdit(),
         });
     };
 
@@ -59,7 +93,7 @@ export default function ProductsIndex({ products }: Props) {
                 title="Marca"
                 subtitle="Tipos de equipo (marca · modelo · storage · color)"
                 actions={
-                    <PrimaryButton type="button" onClick={openModal}>
+                    <PrimaryButton type="button" onClick={openCreate}>
                         <Plus className="mr-1.5 h-4 w-4" />
                         Nueva Marca
                     </PrimaryButton>
@@ -85,13 +119,13 @@ export default function ProductsIndex({ products }: Props) {
                                 <td>{product.storage ?? '—'}</td>
                                 <td>{product.color ?? '—'}</td>
                                 <td className="text-right">
-                                    <Link
-                                        href={`/products/${product.id}/edit`}
+                                    <button
+                                        type="button"
+                                        onClick={() => openEdit(product)}
                                         className="text-sm font-medium text-[#111315] underline-offset-2 hover:underline"
-                                        title={productLabel(product)}
                                     >
                                         Editar
-                                    </Link>
+                                    </button>
                                 </td>
                             </tr>
                         ))}
@@ -99,8 +133,8 @@ export default function ProductsIndex({ products }: Props) {
                 </table>
             </DataTable>
 
-            <Modal show={open} onClose={closeModal} maxWidth="lg">
-                <form onSubmit={submit} className="p-5">
+            <Modal show={createOpen} onClose={closeCreate} maxWidth="lg">
+                <form onSubmit={submitCreate} className="p-5">
                     <h3 className="font-display text-2xl font-semibold uppercase tracking-wide text-[#111315]">
                         Nueva Marca
                     </h3>
@@ -110,57 +144,125 @@ export default function ProductsIndex({ products }: Props) {
 
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                         <div>
-                            <InputLabel htmlFor="brand" value="Marca" />
+                            <InputLabel htmlFor="create-brand" value="Marca" />
                             <TextInput
-                                id="brand"
+                                id="create-brand"
                                 className="mt-1 block w-full"
-                                value={data.brand}
-                                onChange={(e) => setData('brand', e.target.value)}
+                                value={createForm.data.brand}
+                                onChange={(e) => createForm.setData('brand', e.target.value)}
                                 required
                                 autoFocus
                             />
-                            <InputError message={errors.brand} className="mt-1" />
+                            <InputError message={createForm.errors.brand} className="mt-1" />
                         </div>
                         <div>
-                            <InputLabel htmlFor="model" value="Modelo" />
+                            <InputLabel htmlFor="create-model" value="Modelo" />
                             <TextInput
-                                id="model"
+                                id="create-model"
                                 className="mt-1 block w-full"
-                                value={data.model}
-                                onChange={(e) => setData('model', e.target.value)}
+                                value={createForm.data.model}
+                                onChange={(e) => createForm.setData('model', e.target.value)}
                                 required
                             />
-                            <InputError message={errors.model} className="mt-1" />
+                            <InputError message={createForm.errors.model} className="mt-1" />
                         </div>
                         <div>
-                            <InputLabel htmlFor="storage" value="Almacenamiento" />
+                            <InputLabel htmlFor="create-storage" value="Almacenamiento" />
                             <TextInput
-                                id="storage"
+                                id="create-storage"
                                 className="mt-1 block w-full"
-                                value={data.storage}
-                                onChange={(e) => setData('storage', e.target.value)}
+                                value={createForm.data.storage}
+                                onChange={(e) => createForm.setData('storage', e.target.value)}
                                 placeholder="128GB"
                             />
-                            <InputError message={errors.storage} className="mt-1" />
+                            <InputError message={createForm.errors.storage} className="mt-1" />
                         </div>
                         <div>
-                            <InputLabel htmlFor="color" value="Color" />
+                            <InputLabel htmlFor="create-color" value="Color" />
                             <TextInput
-                                id="color"
+                                id="create-color"
                                 className="mt-1 block w-full"
-                                value={data.color}
-                                onChange={(e) => setData('color', e.target.value)}
+                                value={createForm.data.color}
+                                onChange={(e) => createForm.setData('color', e.target.value)}
                                 placeholder="Negro"
                             />
-                            <InputError message={errors.color} className="mt-1" />
+                            <InputError message={createForm.errors.color} className="mt-1" />
                         </div>
                     </div>
 
                     <div className="mt-5 flex justify-end gap-2">
-                        <SecondaryButton type="button" onClick={closeModal}>
+                        <SecondaryButton type="button" onClick={closeCreate}>
                             Cancelar
                         </SecondaryButton>
-                        <PrimaryButton disabled={processing}>Guardar Marca</PrimaryButton>
+                        <PrimaryButton disabled={createForm.processing}>
+                            Guardar Marca
+                        </PrimaryButton>
+                    </div>
+                </form>
+            </Modal>
+
+            <Modal show={!!editing} onClose={closeEdit} maxWidth="lg">
+                <form onSubmit={submitEdit} className="p-5">
+                    <h3 className="font-display text-2xl font-semibold uppercase tracking-wide text-[#111315]">
+                        Editar Marca
+                    </h3>
+                    <p className="mt-1 text-sm text-[#6B7069]">
+                        Actualiza los datos del tipo de equipo
+                    </p>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div>
+                            <InputLabel htmlFor="edit-brand" value="Marca" />
+                            <TextInput
+                                id="edit-brand"
+                                className="mt-1 block w-full"
+                                value={editForm.data.brand}
+                                onChange={(e) => editForm.setData('brand', e.target.value)}
+                                required
+                                autoFocus
+                            />
+                            <InputError message={editForm.errors.brand} className="mt-1" />
+                        </div>
+                        <div>
+                            <InputLabel htmlFor="edit-model" value="Modelo" />
+                            <TextInput
+                                id="edit-model"
+                                className="mt-1 block w-full"
+                                value={editForm.data.model}
+                                onChange={(e) => editForm.setData('model', e.target.value)}
+                                required
+                            />
+                            <InputError message={editForm.errors.model} className="mt-1" />
+                        </div>
+                        <div>
+                            <InputLabel htmlFor="edit-storage" value="Almacenamiento" />
+                            <TextInput
+                                id="edit-storage"
+                                className="mt-1 block w-full"
+                                value={editForm.data.storage}
+                                onChange={(e) => editForm.setData('storage', e.target.value)}
+                                placeholder="128GB"
+                            />
+                            <InputError message={editForm.errors.storage} className="mt-1" />
+                        </div>
+                        <div>
+                            <InputLabel htmlFor="edit-color" value="Color" />
+                            <TextInput
+                                id="edit-color"
+                                className="mt-1 block w-full"
+                                value={editForm.data.color}
+                                onChange={(e) => editForm.setData('color', e.target.value)}
+                                placeholder="Negro"
+                            />
+                            <InputError message={editForm.errors.color} className="mt-1" />
+                        </div>
+                    </div>
+
+                    <div className="mt-5 flex justify-end gap-2">
+                        <SecondaryButton type="button" onClick={closeEdit}>
+                            Cancelar
+                        </SecondaryButton>
+                        <PrimaryButton disabled={editForm.processing}>Actualizar</PrimaryButton>
                     </div>
                 </form>
             </Modal>
