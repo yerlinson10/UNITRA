@@ -4,7 +4,33 @@ import {
     Transition,
     TransitionChild,
 } from '@headlessui/react';
-import { PropsWithChildren } from 'react';
+import {
+    PointerEvent as ReactPointerEvent,
+    PropsWithChildren,
+    ReactNode,
+    useEffect,
+    useRef,
+    useState,
+} from 'react';
+
+const CLOSE_DISTANCE = 280;
+const CLOSE_MIN_FOR_FLICK = 120;
+const EXPAND_DISTANCE = 100;
+const COLLAPSE_DISTANCE = 110;
+const VELOCITY_COMMIT = 1400;
+const SHEET_EASE = '320ms cubic-bezier(0.22, 1, 0.36, 1)';
+const DECELERATION = 0.998;
+
+function project(velocity: number, decelerationRate = DECELERATION) {
+    return ((velocity / 1000) * decelerationRate) / (1 - decelerationRate);
+}
+
+function rubberband(overshoot: number, dimension: number, constant = 0.55) {
+    return (
+        (overshoot * dimension * constant) /
+        (dimension + constant * Math.abs(overshoot))
+    );
+}
 
 export default function Modal({
     children,
@@ -32,40 +58,382 @@ export default function Modal({
         '2xl': 'sm:max-w-2xl',
     }[maxWidth];
 
+    const panelRef = useRef<HTMLDivElement>(null);
+    const collapsedHeightRef = useRef<number | null>(null);
+    const [expanded, setExpanded] = useState(false);
+    const [dragY, setDragY] = useState(0);
+    const [dragHeight, setDragHeight] = useState<number | null>(null);
+    const [dragging, setDragging] = useState(false);
+    const [exitingByDrag, setExitingByDrag] = useState(false);
+
+    const gesture = useRef({
+        active: false,
+        pointerId: -1,
+        startY: 0,
+        startHeight: 0,
+        lastY: 0,
+        lastTime: 0,
+        velocityY: 0,
+        wasExpanded: false,
+    });
+
+    useEffect(() => {
+        if (show) {
+            setExpanded(false);
+            setDragY(0);
+            setDragHeight(null);
+            setDragging(false);
+            setExitingByDrag(false);
+            collapsedHeightRef.current = null;
+            gesture.current.active = false;
+            return;
+        }
+
+        setDragging(false);
+        gesture.current.active = false;
+
+        // Keep the drag offset through the leave animation so the sheet
+        // doesn't snap back up before sliding out.
+        const timer = window.setTimeout(() => {
+            setExpanded(false);
+            setDragY(0);
+            setDragHeight(null);
+            setExitingByDrag(false);
+            collapsedHeightRef.current = null;
+        }, 360);
+
+        return () => window.clearTimeout(timer);
+    }, [show]);
+
+    const prefersReducedMotion = () =>
+        typeof window !== 'undefined' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const isMobileSheet = () =>
+        typeof window !== 'undefined' &&
+        window.matchMedia('(max-width: 639px)').matches;
+
+    const dismissFromDrag = (fromY: number, keepHeight = false) => {
+        setDragging(false);
+        setExitingByDrag(true);
+        setExpanded(false);
+
+        if (!keepHeight) {
+            setDragHeight(null);
+        }
+
+        const startY = Math.max(fromY, 0);
+        setDragY(startY);
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                setDragY(window.innerHeight);
+            });
+        });
+
+        close();
+    };
+
+    const onDragStart = (event: ReactPointerEvent<HTMLDivElement>) => {
+        if (!isMobileSheet() || prefersReducedMotion() || event.button !== 0) {
+            return;
+        }
+
+        const panel = panelRef.current;
+        if (!panel) {
+            return;
+        }
+
+        event.currentTarget.setPointerCapture(event.pointerId);
+        setDragging(true);
+
+        const height = panel.getBoundingClientRect().height;
+        if (!expanded) {
+            collapsedHeightRef.current = height;
+        }
+
+        gesture.current = {
+            active: true,
+            pointerId: event.pointerId,
+            startY: event.clientY,
+            startHeight: height,
+            lastY: event.clientY,
+            lastTime: performance.now(),
+            velocityY: 0,
+            wasExpanded: expanded,
+        };
+    };
+
+    const onDragMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+        const g = gesture.current;
+        if (!g.active || event.pointerId !== g.pointerId) {
+            return;
+        }
+
+        const now = performance.now();
+        const dt = Math.max(now - g.lastTime, 1);
+        const instantVelocity = ((event.clientY - g.lastY) / dt) * 1000;
+        g.velocityY = g.velocityY * 0.7 + instantVelocity * 0.3;
+        g.lastY = event.clientY;
+        g.lastTime = now;
+
+        const delta = event.clientY - g.startY;
+        const viewportH = window.innerHeight;
+
+        if (g.wasExpanded) {
+            // Mirror expand: height follows the finger 1:1. No translate while collapsing.
+            if (delta <= 0) {
+                setDragY(-rubberband(-delta, viewportH * 0.2));
+                setDragHeight(g.startHeight);
+            } else {
+                setDragY(0);
+                setDragHeight(
+                    Math.max(viewportH * 0.45, g.startHeight - delta),
+                );
+            }
+            return;
+        }
+
+        if (delta >= 0) {
+            setDragY(delta);
+            setDragHeight(null);
+            return;
+        }
+
+        // Dragging up from default → grow toward fullscreen
+        setDragY(0);
+        setDragHeight(Math.min(viewportH, g.startHeight + -delta));
+    };
+
+    const settleHeight = (nextExpanded: boolean) => {
+        const panel = panelRef.current;
+        const current = panel?.getBoundingClientRect().height ?? null;
+
+        setExpanded(nextExpanded);
+        setDragY(0);
+
+        if (current == null) {
+            setDragHeight(null);
+            return;
+        }
+
+        // Hold the live height, then ease into the snap so collapse isn't abrupt.
+        setDragHeight(current);
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                if (nextExpanded) {
+                    setDragHeight(window.innerHeight);
+                } else {
+                    setDragHeight(
+                        collapsedHeightRef.current ??
+                            Math.min(window.innerHeight * 0.9, current),
+                    );
+                }
+                window.setTimeout(() => setDragHeight(null), 360);
+            });
+        });
+    };
+
+    const onDragEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
+        const g = gesture.current;
+        if (!g.active || event.pointerId !== g.pointerId) {
+            return;
+        }
+
+        g.active = false;
+        setDragging(false);
+
+        try {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+        } catch {
+            // already released
+        }
+
+        const delta = event.clientY - g.startY;
+        const projected = delta + project(g.velocityY);
+        const flickDown =
+            g.velocityY > VELOCITY_COMMIT && delta > CLOSE_MIN_FOR_FLICK;
+        const flickUp = g.velocityY < -VELOCITY_COMMIT;
+
+        if (g.wasExpanded) {
+            // From fullscreen: a normal drag only collapses. Closing needs a
+            // long pull (almost half the screen) — never a light flick.
+            const shouldClose =
+                projected > window.innerHeight * 0.45 ||
+                delta > window.innerHeight * 0.45;
+
+            if (shouldClose) {
+                // Keep the live height and slide down from here — no snap-back.
+                dismissFromDrag(0, true);
+                return;
+            }
+
+            if (projected > COLLAPSE_DISTANCE || delta > COLLAPSE_DISTANCE) {
+                settleHeight(false);
+                return;
+            }
+
+            settleHeight(true);
+            return;
+        }
+
+        if (
+            projected > CLOSE_DISTANCE ||
+            delta > CLOSE_DISTANCE ||
+            flickDown
+        ) {
+            dismissFromDrag(Math.max(delta, 0));
+            return;
+        }
+
+        if (
+            projected < -EXPAND_DISTANCE ||
+            delta < -EXPAND_DISTANCE ||
+            flickUp
+        ) {
+            settleHeight(true);
+            return;
+        }
+
+        setDragY(0);
+        setDragHeight(null);
+    };
+
+    const dismissProgress =
+        !expanded && dragY > 0
+            ? Math.min(1, dragY / CLOSE_DISTANCE)
+            : expanded && dragY > 0
+              ? Math.min(0.45, dragY / (CLOSE_DISTANCE * 2))
+              : 0;
+
+    const sheetGestureActive =
+        dragging || dragY !== 0 || dragHeight != null || exitingByDrag;
+
+    const panelStyle = sheetGestureActive
+        ? {
+              transform: dragY !== 0 ? `translateY(${dragY}px)` : undefined,
+              height: dragHeight != null ? `${dragHeight}px` : undefined,
+              transition: dragging
+                  ? 'none'
+                  : `transform ${SHEET_EASE}, height ${SHEET_EASE}`,
+          }
+        : dragHeight != null || expanded
+          ? {
+                height: dragHeight != null ? `${dragHeight}px` : undefined,
+                transition: `height ${SHEET_EASE}, border-radius ${SHEET_EASE}`,
+            }
+          : undefined;
+
     return (
         <Transition show={show} leave="duration-200">
             <Dialog
                 as="div"
                 id="modal"
-                className="fixed inset-0 z-50 flex transform items-center overflow-y-auto px-4 py-6 transition-all sm:px-0"
+                className="fixed inset-0 z-50 flex transform items-end justify-center sm:items-center sm:overflow-y-auto sm:px-4 sm:py-6"
                 onClose={close}
             >
                 <TransitionChild
-                    enter="ease-out duration-300"
+                    enter="ease-out duration-300 motion-reduce:duration-150"
                     enterFrom="opacity-0"
                     enterTo="opacity-100"
-                    leave="ease-in duration-200"
+                    leave="ease-in duration-200 motion-reduce:duration-150"
                     leaveFrom="opacity-100"
                     leaveTo="opacity-0"
                 >
-                    <div className="absolute inset-0 bg-black/55 backdrop-blur-md" />
+                    <div
+                        className="absolute inset-0 bg-black/55 backdrop-blur-md"
+                        style={{
+                            opacity: 1 - dismissProgress * 0.55,
+                        }}
+                    />
                 </TransitionChild>
 
                 <TransitionChild
-                    enter="ease-out duration-300"
-                    enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                    enter="ease-out duration-300 motion-reduce:duration-150"
+                    enterFrom="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95 motion-reduce:translate-y-0 motion-reduce:scale-100"
                     enterTo="opacity-100 translate-y-0 sm:scale-100"
-                    leave="ease-in duration-200"
-                    leaveFrom="opacity-100 translate-y-0 sm:scale-100"
-                    leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                    leave={`ease-in motion-reduce:duration-150 ${exitingByDrag ? 'duration-[320ms]' : 'duration-200'}`}
+                    leaveFrom="opacity-100"
+                    leaveTo={`opacity-0 ${exitingByDrag ? '' : 'translate-y-full sm:translate-y-0 sm:scale-95 motion-reduce:translate-y-0 motion-reduce:scale-100'}`}
                 >
                     <DialogPanel
-                        className={`mb-6 transform overflow-hidden rounded-lg bg-white shadow-xl transition-all sm:mx-auto sm:w-full ${maxWidthClass}`}
+                        ref={panelRef}
+                        style={panelStyle}
+                        className={`relative z-10 flex w-full transform flex-col overflow-hidden bg-white pb-[env(safe-area-inset-bottom)] shadow-xl will-change-transform sm:mb-0 sm:max-h-[calc(100vh-3rem)] sm:rounded-lg sm:pb-0 sm:mx-auto sm:w-full sm:transition-none ${
+                            expanded
+                                ? 'max-sm:h-[100dvh] max-sm:max-h-[100dvh] max-sm:rounded-none'
+                                : 'max-h-[90dvh] rounded-t-2xl'
+                        } ${maxWidthClass}`}
                     >
-                        {children}
+                        <div
+                            className="flex shrink-0 touch-none cursor-grab justify-center pt-3 pb-2 active:cursor-grabbing sm:hidden"
+                            onPointerDown={onDragStart}
+                            onPointerMove={onDragMove}
+                            onPointerUp={onDragEnd}
+                            onPointerCancel={onDragEnd}
+                            role="presentation"
+                        >
+                            <div className="h-1.5 w-12 rounded-full bg-[#D0D3CD]" />
+                        </div>
+
+                        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+                            {children}
+                        </div>
                     </DialogPanel>
                 </TransitionChild>
             </Dialog>
         </Transition>
+    );
+}
+
+export function ModalHeader({
+    title,
+    subtitle,
+    children,
+    className = '',
+}: {
+    title: string;
+    subtitle?: string;
+    children?: ReactNode;
+    className?: string;
+}) {
+    return (
+        <div
+            className={`flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-[#E3E5E0] px-6 py-4 ${className}`}
+        >
+            <div className="min-w-0">
+                <h2 className="font-display text-xl font-semibold uppercase tracking-wide text-[#111315]">
+                    {title}
+                </h2>
+                {subtitle && (
+                    <p className="mt-1 text-sm text-[#6B7069]">{subtitle}</p>
+                )}
+            </div>
+            {children}
+        </div>
+    );
+}
+
+export function ModalBody({
+    children,
+    className = '',
+}: PropsWithChildren<{ className?: string }>) {
+    return (
+        <div className={`min-h-0 flex-1 overflow-y-auto px-6 py-4 ${className}`}>
+            {children}
+        </div>
+    );
+}
+
+export function ModalFooter({
+    children,
+    className = '',
+}: PropsWithChildren<{ className?: string }>) {
+    return (
+        <div
+            className={`shrink-0 border-t border-[#E3E5E0] px-6 py-4 ${className}`}
+        >
+            {children}
+        </div>
     );
 }
