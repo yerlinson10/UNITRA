@@ -1,16 +1,13 @@
 import PageHeader from '@/Components/PageHeader';
-import PosAvailableShelf from '@/Components/Pos/PosAvailableShelf';
 import PosCart from '@/Components/Pos/PosCart';
 import PosCashGate from '@/Components/Pos/PosCashGate';
 import PosCheckout from '@/Components/Pos/PosCheckout';
 import PosSearchBar from '@/Components/Pos/PosSearchBar';
 import PosTradeInModal from '@/Components/Pos/PosTradeInModal';
 import {
-    PosAvailableItem,
     PosCartItem,
     PosLookupItem,
     PosTradeInForm,
-    availableToCartItem,
     emptyTradeIn,
     isBelowMinPrice,
     lookupToCartItem,
@@ -35,6 +32,7 @@ export default function PosIndex({
     const { flash } = usePage<PageProps>().props;
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<PosLookupItem[]>([]);
+    const [searchOpen, setSearchOpen] = useState(false);
     const [cart, setCart] = useState<PosCartItem[]>([]);
     const [tradeIns, setTradeIns] = useState<PosTradeInForm[]>([]);
     const [draft, setDraft] = useState<PosTradeInForm | null>(null);
@@ -45,6 +43,7 @@ export default function PosIndex({
     const [localToast, setLocalToast] = useState<string | null>(null);
     const debounceRef = useRef<number | null>(null);
     const skipDebounceRef = useRef(false);
+    const blurCloseRef = useRef<number | null>(null);
 
     const form = useForm({
         customer_name: '',
@@ -99,6 +98,7 @@ export default function PosIndex({
         setCart((prev) => [...prev, item]);
         setSearchQuery('');
         setSearchResults([]);
+        setSearchOpen(false);
         setLookupError(null);
         if (feedback) {
             showToast(feedback);
@@ -109,23 +109,17 @@ export default function PosIndex({
         addCartItem(lookupToCartItem(item), 'Agregado');
     };
 
-    const addFromShelf = (item: PosAvailableItem) => {
-        addCartItem(availableToCartItem(item), 'Agregado');
-    };
-
-    const runLookup = async (rawQuery: string) => {
+    const runLookup = async (rawQuery: string, { autoAddExact = false } = {}) => {
         const q = rawQuery.trim();
-        if (!q) {
-            setSearchResults([]);
-            setLookupError(null);
-            return;
-        }
 
         setLookingUp(true);
         setLookupError(null);
 
         try {
-            const res = await fetch(`/pos/lookup?q=${encodeURIComponent(q)}`, {
+            const url = q
+                ? `/pos/lookup?q=${encodeURIComponent(q)}`
+                : '/pos/lookup';
+            const res = await fetch(url, {
                 headers: {
                     Accept: 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
@@ -141,8 +135,8 @@ export default function PosIndex({
                 return;
             }
 
-            // Only auto-add on exact IMEI (scanner). Never pick "first result" on Enter.
-            if (payload.exact && payload.item) {
+            // Auto-add only on explicit submit (scanner Enter), never while typing.
+            if (autoAddExact && payload.exact && payload.item) {
                 addFromLookup(payload.item as PosLookupItem);
                 return;
             }
@@ -158,6 +152,10 @@ export default function PosIndex({
     };
 
     useEffect(() => {
+        if (!searchOpen) {
+            return;
+        }
+
         if (skipDebounceRef.current) {
             skipDebounceRef.current = false;
             return;
@@ -168,14 +166,9 @@ export default function PosIndex({
         }
 
         const q = searchQuery.trim();
-        if (q.length < 2) {
-            setSearchResults([]);
-            return;
-        }
-
         debounceRef.current = window.setTimeout(() => {
             void runLookup(q);
-        }, 250);
+        }, q.length === 0 ? 0 : 150);
 
         return () => {
             if (debounceRef.current) {
@@ -183,7 +176,7 @@ export default function PosIndex({
             }
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchQuery]);
+    }, [searchQuery, searchOpen]);
 
     const searchUnits: FormEventHandler = (e) => {
         e.preventDefault();
@@ -191,7 +184,27 @@ export default function PosIndex({
         if (debounceRef.current) {
             window.clearTimeout(debounceRef.current);
         }
-        void runLookup(searchQuery);
+        void runLookup(searchQuery, { autoAddExact: true });
+    };
+
+    const openSearch = () => {
+        if (blurCloseRef.current) {
+            window.clearTimeout(blurCloseRef.current);
+            blurCloseRef.current = null;
+        }
+        setSearchOpen(true);
+    };
+
+    const closeSearch = () => {
+        if (blurCloseRef.current) {
+            window.clearTimeout(blurCloseRef.current);
+        }
+        // Delay so clicking a result still registers before the panel closes.
+        blurCloseRef.current = window.setTimeout(() => {
+            setSearchOpen(false);
+            setLookupError(null);
+            blurCloseRef.current = null;
+        }, 150);
     };
 
     const submitSale: FormEventHandler = (e) => {
@@ -256,7 +269,7 @@ export default function PosIndex({
 
             <PageHeader
                 title="POS"
-                subtitle="Escaneo IMEI · stock disponible · Trade-In"
+                subtitle="Escaneo IMEI · búsqueda · Trade-In"
             />
 
             <div className="mb-4 space-y-3">
@@ -269,16 +282,15 @@ export default function PosIndex({
                         query={searchQuery}
                         onQueryChange={setSearchQuery}
                         onSubmit={searchUnits}
+                        onFocus={openSearch}
+                        onBlur={closeSearch}
+                        open={searchOpen}
                         lookingUp={lookingUp}
                         error={lookupError}
-                        results={searchResults}
+                        results={searchResults.filter(
+                            (item) => !cartIds.has(item.id),
+                        )}
                         onAdd={addFromLookup}
-                        canViewCosts={canViewCosts}
-                    />
-
-                    <PosAvailableShelf
-                        cartIds={cartIds}
-                        onAdd={addFromShelf}
                         canViewCosts={canViewCosts}
                     />
 

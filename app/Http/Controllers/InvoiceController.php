@@ -10,8 +10,10 @@ use App\Models\Invoice;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
 class InvoiceController extends Controller
@@ -47,6 +49,10 @@ class InvoiceController extends Controller
                 'search' => $request->string('search')->toString(),
                 'status' => $request->string('status')->toString(),
             ],
+            'statuses' => collect(InvoiceStatus::cases())->map(fn (InvoiceStatus $case) => [
+                'value' => $case->value,
+                'label' => $case->label(),
+            ]),
             'canViewCosts' => $request->user()->canViewCosts(),
         ]);
     }
@@ -99,16 +105,16 @@ class InvoiceController extends Controller
         return back()->with('success', 'Factura anulada correctamente.');
     }
 
-    public function pdf(Request $request, Invoice $invoice): \Symfony\Component\HttpFoundation\StreamedResponse
+    public function pdf(Request $request, Invoice $invoice): StreamedResponse
     {
         $this->authorize('view', $invoice);
 
         abort_unless(
-            $invoice->pdf_path && \Illuminate\Support\Facades\Storage::disk('local')->exists($invoice->pdf_path),
+            $invoice->pdf_path && Storage::disk('local')->exists($invoice->pdf_path),
             404,
         );
 
-        return \Illuminate\Support\Facades\Storage::disk('local')->download(
+        return Storage::disk('local')->download(
             $invoice->pdf_path,
             $invoice->number.'.pdf',
         );

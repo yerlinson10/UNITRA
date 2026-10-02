@@ -2,9 +2,11 @@ import DataTable from '@/Components/DataTable';
 import Money from '@/Components/Money';
 import PageHeader from '@/Components/PageHeader';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Invoice, PageProps } from '@/types';
+import { Invoice, PageProps, SaleItem, TradeIn } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
+import { ColumnDef } from '@tanstack/react-table';
 import { FileText } from 'lucide-react';
+import { useMemo } from 'react';
 
 type Props = PageProps<{
     invoice: Invoice;
@@ -20,6 +22,103 @@ export default function InvoicesShow({ invoice, auth }: Props) {
         if (!confirm('¿Anular esta factura? Esta acción no se puede deshacer.')) return;
         router.post(`/invoices/${invoice.id}/void`);
     };
+
+    const itemColumns = useMemo<ColumnDef<SaleItem>[]>(
+        () => [
+            {
+                id: 'product',
+                header: 'Producto',
+                accessorFn: (row) =>
+                    row.product_label ?? row.product_name ?? '',
+                cell: ({ row }) =>
+                    row.original.product_label ??
+                    row.original.product_name ??
+                    '—',
+            },
+            {
+                id: 'imei',
+                header: 'IMEI',
+                accessorFn: (row) => row.imei ?? row.inventory_item?.imei ?? '',
+                cell: ({ row }) => (
+                    <span className="font-mono text-xs">
+                        {row.original.imei ??
+                            row.original.inventory_item?.imei ??
+                            '—'}
+                    </span>
+                ),
+            },
+            {
+                id: 'warranty',
+                header: 'Garantía',
+                cell: ({ row }) => {
+                    const item = row.original;
+                    const date =
+                        item.warranty_expires_at ??
+                        item.inventory_item?.warranty_expires_at ??
+                        null;
+                    return (
+                        <span className="text-xs">
+                            {date
+                                ? new Date(`${date}T12:00:00`).toLocaleDateString(
+                                      'es-DO',
+                                  )
+                                : '—'}
+                        </span>
+                    );
+                },
+            },
+            {
+                id: 'price',
+                header: 'Precio',
+                cell: ({ row }) => (
+                    <Money
+                        amount={
+                            row.original.price ?? row.original.sale_price ?? null
+                        }
+                    />
+                ),
+            },
+        ],
+        [],
+    );
+
+    const tradeInColumns = useMemo<ColumnDef<TradeIn>[]>(
+        () => [
+            {
+                id: 'equipment',
+                header: 'Equipo',
+                accessorFn: (row) =>
+                    row.product_label ||
+                    [row.brand, row.model].filter(Boolean).join(' ') ||
+                    '',
+                cell: ({ row }) =>
+                    row.original.product_label ||
+                    [row.original.brand, row.original.model]
+                        .filter(Boolean)
+                        .join(' ') ||
+                    '—',
+            },
+            {
+                accessorKey: 'imei',
+                header: 'IMEI',
+                cell: ({ getValue }) => (
+                    <span className="font-mono text-xs">
+                        {getValue() as string}
+                    </span>
+                ),
+            },
+            {
+                accessorKey: 'condition',
+                header: 'Condición',
+            },
+            {
+                accessorKey: 'credited_value',
+                header: 'Crédito',
+                cell: ({ row }) => <Money amount={row.original.credited_value} />,
+            },
+        ],
+        [],
+    );
 
     return (
         <AuthenticatedLayout title={`Factura ${invoice.number ?? invoice.id}`}>
@@ -74,19 +173,25 @@ export default function InvoicesShow({ invoice, auth }: Props) {
 
             <div className="mb-5 grid gap-4 sm:grid-cols-3">
                 <div className="unitra-card p-4">
-                    <p className="text-xs uppercase tracking-wide text-[#6B7069]">Subtotal</p>
+                    <p className="text-xs uppercase tracking-wide text-[#6B7069]">
+                        Subtotal
+                    </p>
                     <p className="mt-1 font-display text-2xl font-semibold">
                         <Money amount={invoice.subtotal} />
                     </p>
                 </div>
                 <div className="unitra-card p-4">
-                    <p className="text-xs uppercase tracking-wide text-[#6B7069]">Trade-In</p>
+                    <p className="text-xs uppercase tracking-wide text-[#6B7069]">
+                        Trade-In
+                    </p>
                     <p className="mt-1 font-display text-2xl font-semibold">
                         <Money amount={invoice.trade_in_total ?? 0} />
                     </p>
                 </div>
                 <div className="unitra-card p-4">
-                    <p className="text-xs uppercase tracking-wide text-[#6B7069]">A pagar</p>
+                    <p className="text-xs uppercase tracking-wide text-[#6B7069]">
+                        A pagar
+                    </p>
                     <p className="mt-1 font-display text-2xl font-semibold">
                         <Money amount={invoice.amount_due} />
                     </p>
@@ -96,82 +201,27 @@ export default function InvoicesShow({ invoice, auth }: Props) {
             <h2 className="mb-2 font-display text-lg font-semibold uppercase tracking-wide">
                 Ítems
             </h2>
-            <DataTable isEmpty={items.length === 0} empty="Sin ítems.">
-                <table className="unitra-table">
-                    <thead>
-                        <tr>
-                            <th>Producto</th>
-                            <th>IMEI</th>
-                            <th>Garantía</th>
-                            <th>Precio</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {items.map((item, i) => (
-                            <tr key={`${item.inventory_item_id}-${i}`}>
-                                <td>
-                                    {item.product_label ??
-                                        item.product_name ??
-                                        '—'}
-                                </td>
-                                <td className="font-mono text-xs">
-                                    {item.imei ?? item.inventory_item?.imei ?? '—'}
-                                </td>
-                                <td className="text-xs">
-                                    {item.warranty_expires_at
-                                        ? new Date(
-                                              `${item.warranty_expires_at}T12:00:00`,
-                                          ).toLocaleDateString('es-DO')
-                                        : item.inventory_item?.warranty_expires_at
-                                          ? new Date(
-                                                `${item.inventory_item.warranty_expires_at}T12:00:00`,
-                                            ).toLocaleDateString('es-DO')
-                                          : '—'}
-                                </td>
-                                <td>
-                                    <Money
-                                        amount={item.price ?? item.sale_price ?? null}
-                                    />
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </DataTable>
+            <DataTable
+                columns={itemColumns}
+                data={items}
+                empty="Sin ítems."
+                searchPlaceholder="Producto o IMEI…"
+                initialPageSize={25}
+                showPagination={items.length > 25}
+            />
 
             {tradeIns.length > 0 && (
                 <>
                     <h2 className="mb-2 mt-6 font-display text-lg font-semibold uppercase tracking-wide">
                         Trade-Ins
                     </h2>
-                    <DataTable>
-                        <table className="unitra-table">
-                            <thead>
-                                <tr>
-                                    <th>Equipo</th>
-                                    <th>IMEI</th>
-                                    <th>Condición</th>
-                                    <th>Crédito</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {tradeIns.map((ti, i) => (
-                                    <tr key={ti.id ?? i}>
-                                        <td>
-                                            {ti.product_label ||
-                                                [ti.brand, ti.model].filter(Boolean).join(' ') ||
-                                                '—'}
-                                        </td>
-                                        <td className="font-mono text-xs">{ti.imei}</td>
-                                        <td>{ti.condition}</td>
-                                        <td>
-                                            <Money amount={ti.credited_value} />
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </DataTable>
+                    <DataTable
+                        columns={tradeInColumns}
+                        data={tradeIns}
+                        searchPlaceholder="Equipo o IMEI…"
+                        initialPageSize={25}
+                        showPagination={tradeIns.length > 25}
+                    />
                 </>
             )}
         </AuthenticatedLayout>

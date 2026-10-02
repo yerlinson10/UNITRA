@@ -81,7 +81,7 @@ export interface Purchase {
     notes?: string | null;
     total_cost?: number;
     lines?: PurchaseLine[];
-    items?: InventoryItem[];
+    items?: PurchaseLine[];
     created_at?: string;
     user?: User;
 }
@@ -145,6 +145,7 @@ export interface CashMovement {
     type: CashMovementType | string;
     amount: number;
     description?: string | null;
+    notes?: string | null;
     created_at?: string;
     user?: User;
 }
@@ -164,8 +165,12 @@ export interface Paginated<T> {
     last_page?: number;
     per_page?: number;
     total?: number;
+    from?: number | null;
+    to?: number | null;
     links?: Array<{ url: string | null; label: string; active: boolean }>;
 }
+
+export type TableFilters = Record<string, string | undefined>;
 
 export type PageProps<
     T extends Record<string, unknown> = Record<string, unknown>,

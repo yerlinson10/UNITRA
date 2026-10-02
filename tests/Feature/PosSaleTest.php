@@ -210,6 +210,17 @@ class PosSaleTest extends TestCase
             ->assertJsonPath('item.imei', $item->imei);
     }
 
+    public function test_pos_lookup_without_query_browses_available_stock(): void
+    {
+        ['cashier' => $cashier, 'item' => $item] = $this->seedPosSale();
+
+        $this->actingAs($cashier)
+            ->getJson('/pos/lookup')
+            ->assertOk()
+            ->assertJsonPath('exact', false)
+            ->assertJsonFragment(['imei' => $item->imei]);
+    }
+
     public function test_pos_lookup_by_name_is_case_insensitive_and_not_exact(): void
     {
         ['store' => $store, 'cashier' => $cashier] = $this->seedPosSale();
@@ -258,33 +269,6 @@ class PosSaleTest extends TestCase
             ->assertOk()
             ->assertJsonPath('exact', false)
             ->assertJsonFragment(['imei' => '359999999999002']);
-    }
-
-    public function test_pos_available_endpoint_paginates_and_uses_cache_invalidation(): void
-    {
-        ['store' => $store, 'cashier' => $cashier, 'item' => $item] = $this->seedPosSale();
-
-        $first = $this->actingAs($cashier)
-            ->getJson('/pos/available?page=1')
-            ->assertOk()
-            ->assertJsonPath('meta.current_page', 1)
-            ->assertJsonPath('meta.total', 1)
-            ->assertJsonFragment(['imei' => $item->imei]);
-
-        InventoryItem::factory()->create([
-            'store_id' => $store->id,
-            'product_id' => $item->product_id,
-            'imei' => '359999999999099',
-            'status' => InventoryStatus::Available,
-        ]);
-
-        $this->actingAs($cashier)
-            ->getJson('/pos/available?page=1')
-            ->assertOk()
-            ->assertJsonPath('meta.total', 2)
-            ->assertJsonFragment(['imei' => '359999999999099']);
-
-        $this->assertNotNull($first->json('data'));
     }
 
     public function test_pos_index_exposes_cash_session_without_bulk_available_items(): void

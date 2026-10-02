@@ -25,15 +25,12 @@ class PosLookupService
         $request ??= request();
         $query = trim($rawQuery);
 
+        $storeId = $user->store_id;
+
         if ($query === '') {
-            return [
-                'exact' => false,
-                'results' => [],
-                'message' => 'Indica un término de búsqueda.',
-            ];
+            return $this->browseAvailable($storeId, $request);
         }
 
-        $storeId = $user->store_id;
         $digits = preg_replace('/\D+/', '', $query) ?? '';
 
         // Scanner / exact IMEI only — never auto-pick by product name.
@@ -92,6 +89,40 @@ class PosLookupService
     }
 
     /**
+     * @return array{
+     *     exact: bool,
+     *     results: list<array<string, mixed>>,
+     *     message?: string
+     * }
+     */
+    private function browseAvailable(?int $storeId, Request $request): array
+    {
+        $items = InventoryItem::query()
+            ->with('product')
+            ->when($storeId, fn ($q) => $q->where('store_id', $storeId))
+            ->where('status', InventoryStatus::Available)
+            ->latest('id')
+            ->limit(20)
+            ->get();
+
+        if ($items->isEmpty()) {
+            return [
+                'exact' => false,
+                'results' => [],
+                'message' => 'Sin resultados disponibles.',
+            ];
+        }
+
+        return [
+            'exact' => false,
+            'results' => $items
+                ->map(fn (InventoryItem $item) => (new InventoryItemResource($item))->resolve($request))
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /**
      * @return list<string>
      */
     private function tokens(string $query): array
@@ -104,7 +135,7 @@ class PosLookupService
 
         return array_values(array_filter(
             preg_split('/\s+/', $normalized) ?: [],
-            fn (string $token): bool => strlen($token) >= 2,
+            fn (string $token): bool => $token !== '',
         ));
     }
 

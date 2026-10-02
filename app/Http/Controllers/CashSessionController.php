@@ -19,10 +19,20 @@ class CashSessionController extends Controller
     {
         $storeId = $request->user()->store_id;
 
+        $search = $request->string('search')->toString();
+        $status = $request->string('status')->toString();
+
         $sessions = CashSession::query()
             ->with(['user:id,name'])
             ->withCount('movements')
             ->when($storeId, fn ($q) => $q->where('store_id', $storeId))
+            ->when($status !== '', fn ($q) => $q->where('status', $status))
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where(function ($inner) use ($search) {
+                    $inner->where('notes', 'like', "%{$search}%")
+                        ->orWhereHas('user', fn ($userQuery) => $userQuery->where('name', 'like', "%{$search}%"));
+                });
+            })
             ->latest('opened_at')
             ->paginate(20)
             ->withQueryString();
@@ -38,6 +48,14 @@ class CashSessionController extends Controller
             'sessions' => $sessions,
             'openSession' => $openSession,
             'expectedAmount' => $openSession?->calculateExpectedAmount(),
+            'filters' => [
+                'search' => $search,
+                'status' => $status,
+            ],
+            'statuses' => collect(CashSessionStatus::cases())->map(fn (CashSessionStatus $case) => [
+                'value' => $case->value,
+                'label' => $case->label(),
+            ]),
         ]);
     }
 

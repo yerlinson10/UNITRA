@@ -1,5 +1,3 @@
-import { InventoryItem, Product } from '@/types';
-
 export type PosLookupItem = {
     id: number;
     imei: string;
@@ -43,10 +41,6 @@ export type PosTradeInForm = {
     seller_id_type: string;
     seller_id_number: string;
     seller_phone: string;
-};
-
-export type PosAvailableItem = InventoryItem & {
-    product?: Product & { name?: string | null };
 };
 
 export const CONDITION_GRADES = [
@@ -128,26 +122,6 @@ export function lookupToCartItem(item: PosLookupItem): PosCartItem {
         regular_sale_price: toNullableNumber(item.regular_sale_price),
         cost: toNullableNumber(item.cost),
         condition_grade: item.condition_grade ?? null,
-    };
-}
-
-export function availableToCartItem(item: PosAvailableItem): PosCartItem {
-    const min =
-        item.min_sale_price != null
-            ? Number(item.min_sale_price)
-            : item.min_price != null
-              ? Number(item.min_price)
-              : null;
-
-    return {
-        inventory_item_id: item.id,
-        imei: item.imei,
-        product_label: productLabel(item.product, `Unidad ${item.imei}`),
-        sale_price: defaultSalePrice(item.regular_sale_price, min),
-        min_sale_price: min,
-        regular_sale_price: toNullableNumber(item.regular_sale_price),
-        cost: item.cost != null ? Number(item.cost) : null,
-        condition_grade: item.condition_grade ?? item.condition ?? null,
     };
 }
 

@@ -17,6 +17,7 @@ import {
     SelectValue,
 } from '@/Components/ui/select';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { useServerTable } from '@/hooks/useServerTable';
 import {
     InventoryItem,
     InventoryStatus,
@@ -25,8 +26,9 @@ import {
     Product,
 } from '@/types';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { ColumnDef } from '@tanstack/react-table';
 import { Plus } from 'lucide-react';
-import { FormEventHandler, useEffect, useMemo, useState } from 'react';
+import { FormEventHandler, useCallback, useEffect, useMemo, useState } from 'react';
 
 type Row = InventoryItem & {
     min_sale_price?: number | null;
@@ -80,14 +82,20 @@ export default function InventoryIndex({
     canViewCosts = false,
 }: Props) {
     const page = usePage();
-    const [status, setStatus] = useState(filters.status ?? '');
-    const [search, setSearch] = useState(filters.search ?? '');
     const [createOpen, setCreateOpen] = useState(false);
     const [editing, setEditing] = useState<Row | null>(null);
     const [mode, setMode] = useState<'existing' | 'new'>(
         Marcas.length > 0 ? 'existing' : 'new',
     );
     const rows = rowsOf(items);
+    const paginated = !items || Array.isArray(items) ? undefined : items;
+
+    const table = useServerTable({
+        url: '/inventory',
+        paginated,
+        filters,
+        only: ['items', 'filters', 'statuses', 'Marcas', 'canViewCosts'],
+    });
 
     const createForm = useForm({
         product_id: Marcas[0] ? String(Marcas[0].id) : '',
@@ -163,39 +171,151 @@ export default function InventoryIndex({
         setCreateOpen(true);
     };
 
-    const openEdit = (item: Row) => {
-        setEditing(item);
-        editForm.clearErrors();
-        editForm.setData({
-            product_id: String(item.product_id),
-            imei: item.imei ?? '',
-            serial: item.serial ?? '',
-            condition_grade: conditionOf(item) ?? '',
-            battery_health:
-                item.battery_health != null ? String(item.battery_health) : '',
-            cost: item.cost != null ? String(item.cost) : '',
-            min_sale_price:
-                item.min_sale_price != null
-                    ? String(item.min_sale_price)
-                    : item.min_price != null
-                      ? String(item.min_price)
-                      : '',
-            regular_sale_price:
-                item.regular_sale_price != null
-                    ? String(item.regular_sale_price)
+    const openEdit = useCallback(
+        (item: Row) => {
+            setEditing(item);
+            editForm.clearErrors();
+            editForm.setData({
+                product_id: String(item.product_id),
+                imei: item.imei ?? '',
+                serial: item.serial ?? '',
+                condition_grade: conditionOf(item) ?? '',
+                battery_health:
+                    item.battery_health != null ? String(item.battery_health) : '',
+                cost: item.cost != null ? String(item.cost) : '',
+                min_sale_price:
+                    item.min_sale_price != null
+                        ? String(item.min_sale_price)
+                        : item.min_price != null
+                          ? String(item.min_price)
+                          : '',
+                regular_sale_price:
+                    item.regular_sale_price != null
+                        ? String(item.regular_sale_price)
+                        : '',
+                purchased_at: item.purchased_at
+                    ? String(item.purchased_at).slice(0, 10)
+                    : todayDate(),
+                warranty_months:
+                    item.warranty_months != null
+                        ? String(item.warranty_months)
+                        : '3',
+                warranty_expires_at: item.warranty_expires_at
+                    ? String(item.warranty_expires_at).slice(0, 10)
                     : '',
-            purchased_at: item.purchased_at
-                ? String(item.purchased_at).slice(0, 10)
-                : todayDate(),
-            warranty_months:
-                item.warranty_months != null ? String(item.warranty_months) : '3',
-            warranty_expires_at: item.warranty_expires_at
-                ? String(item.warranty_expires_at).slice(0, 10)
-                : '',
-            status: String(item.status ?? 'available'),
-            notes: item.notes ?? '',
-        });
-    };
+                status: String(item.status ?? 'available'),
+                notes: item.notes ?? '',
+            });
+        },
+        [editForm],
+    );
+
+    const columns = useMemo<ColumnDef<Row>[]>(
+        () => {
+            const cols: ColumnDef<Row>[] = [
+                {
+                    accessorKey: 'imei',
+                    header: 'IMEI',
+                    cell: ({ getValue }) => (
+                        <span className="font-mono text-xs font-medium">
+                            {getValue() as string}
+                        </span>
+                    ),
+                },
+                {
+                    id: 'label',
+                    header: 'Marca',
+                    cell: ({ row }) => labelOf(row.original),
+                },
+                {
+                    accessorKey: 'purchased_at',
+                    header: 'Compra',
+                    cell: ({ row }) => (
+                        <span className="whitespace-nowrap text-xs">
+                            {formatDate(row.original.purchased_at)}
+                        </span>
+                    ),
+                },
+                {
+                    id: 'warranty',
+                    header: 'Garantía',
+                    cell: ({ row }) => (
+                        <span className="whitespace-nowrap text-xs">
+                            {row.original.warranty_expires_at
+                                ? formatDate(row.original.warranty_expires_at)
+                                : row.original.warranty_months != null
+                                  ? `${row.original.warranty_months} mes${row.original.warranty_months === 1 ? '' : 'es'}`
+                                  : '—'}
+                        </span>
+                    ),
+                },
+                {
+                    accessorKey: 'sold_at',
+                    header: 'Vendido',
+                    cell: ({ row }) => (
+                        <span className="whitespace-nowrap text-xs">
+                            {formatDate(row.original.sold_at)}
+                        </span>
+                    ),
+                },
+                {
+                    accessorKey: 'status',
+                    header: 'Estado',
+                    cell: ({ row }) => (
+                        <StatusBadge
+                            status={row.original.status as InventoryStatus}
+                        />
+                    ),
+                },
+                {
+                    accessorKey: 'regular_sale_price',
+                    header: 'Precio regular',
+                    cell: ({ row }) => (
+                        <Money amount={row.original.regular_sale_price ?? null} />
+                    ),
+                },
+                {
+                    id: 'min_price',
+                    header: 'Precio mín.',
+                    cell: ({ row }) => (
+                        <Money
+                            amount={
+                                row.original.min_sale_price ??
+                                row.original.min_price ??
+                                null
+                            }
+                        />
+                    ),
+                },
+            ];
+
+            if (canViewCosts) {
+                cols.push({
+                    accessorKey: 'cost',
+                    header: 'Costo',
+                    cell: ({ row }) => <Money amount={row.original.cost} />,
+                });
+            }
+
+            cols.push({
+                id: 'actions',
+                header: 'Ver',
+                meta: { headerClassName: 'text-right', cellClassName: 'text-right' },
+                cell: ({ row }) => (
+                    <button
+                        type="button"
+                        onClick={() => openEdit(row.original)}
+                        className="min-h-11 text-sm font-medium underline-offset-2 hover:underline"
+                    >
+                        Detalle
+                    </button>
+                ),
+            });
+
+            return cols;
+        },
+        [canViewCosts, openEdit],
+    );
 
     const closeEdit = () => {
         setEditing(null);
@@ -204,18 +324,6 @@ export default function InventoryIndex({
         if (queryItemId) {
             router.get('/inventory', {}, { replace: true, preserveState: true });
         }
-    };
-
-    const applyFilter: FormEventHandler = (e) => {
-        e.preventDefault();
-        router.get(
-            '/inventory',
-            {
-                status: status || undefined,
-                search: search || undefined,
-            },
-            { preserveState: true, replace: true },
-        );
     };
 
     const submitCreate: FormEventHandler = (e) => {
@@ -326,7 +434,7 @@ export default function InventoryIndex({
 
             <PageHeader
                 title="Productos"
-                subtitle={`${rows.length} unidades por IMEI`}
+                subtitle={`${table.total || rows.length} unidades por IMEI`}
                 actions={
                     <PrimaryButton type="button" onClick={openCreate}>
                         <Plus className="mr-1.5 h-4 w-4" />
@@ -335,116 +443,60 @@ export default function InventoryIndex({
                 }
             />
 
-            <form
-                onSubmit={applyFilter}
-                className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
-            >
-                <div className="min-w-0 flex-1 sm:min-w-[220px]">
-                    <label className="mb-1 block text-xs font-medium text-[#6B7069]">
-                        Buscar
-                    </label>
-                    <TextInput
-                        className="block w-full"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="IMEI, marca, modelo, serial…"
-                    />
-                </div>
-                <div className="w-full sm:w-auto sm:min-w-[180px]">
-                    <label className="mb-1 block text-xs font-medium text-[#6B7069]">
-                        Estado
-                    </label>
-                    <Select
-                        value={status || 'all'}
-                        onValueChange={(value) => setStatus(value === 'all' ? '' : value)}
-                    >
-                        <SelectTrigger>
-                            <SelectValue placeholder="Todos" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todos</SelectItem>
-                            {statusOptions.map((opt) => (
-                                <SelectItem key={opt.value || 'all'} value={opt.value}>
-                                    {opt.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-                <button
-                    type="submit"
-                    className="min-h-11 w-full rounded-md border border-[#E3E5E0] bg-white px-3 py-2 text-sm font-medium hover:bg-[#F5F6F3] active:scale-[0.97] sm:w-auto"
-                >
-                    Filtrar
-                </button>
-            </form>
-
-            <DataTable isEmpty={rows.length === 0} empty="Sin productos en inventario.">
-                <table className="unitra-table">
-                    <thead>
-                        <tr>
-                            <th>IMEI</th>
-                            <th>Marca</th>
-                            <th>Compra</th>
-                            <th>Garantía</th>
-                            <th>Vendido</th>
-                            <th>Estado</th>
-                            <th>Precio regular</th>
-                            <th>Precio mín.</th>
-                            {canViewCosts && <th>Costo</th>}
-                            <th className="text-right">Ver</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {rows.map((item) => (
-                            <tr key={item.id}>
-                                <td className="font-mono text-xs font-medium">
-                                    {item.imei}
-                                </td>
-                                <td>{labelOf(item)}</td>
-                                <td className="whitespace-nowrap text-xs">
-                                    {formatDate(item.purchased_at)}
-                                </td>
-                                <td className="whitespace-nowrap text-xs">
-                                    {item.warranty_expires_at
-                                        ? formatDate(item.warranty_expires_at)
-                                        : item.warranty_months != null
-                                          ? `${item.warranty_months} mes${item.warranty_months === 1 ? '' : 'es'}`
-                                          : '—'}
-                                </td>
-                                <td className="whitespace-nowrap text-xs">
-                                    {formatDate(item.sold_at)}
-                                </td>
-                                <td>
-                                    <StatusBadge status={item.status as InventoryStatus} />
-                                </td>
-                                <td>
-                                    <Money amount={item.regular_sale_price ?? null} />
-                                </td>
-                                <td>
-                                    <Money
-                                        amount={item.min_sale_price ?? item.min_price ?? null}
-                                    />
-                                </td>
-                                {canViewCosts && (
-                                    <td>
-                                        <Money amount={item.cost} />
-                                    </td>
-                                )}
-                                <td className="text-right">
-                                    <button
-                                        type="button"
-                                        onClick={() => openEdit(item)}
-                                        className="min-h-11 text-sm font-medium underline-offset-2 hover:underline"
+            <DataTable
+                columns={columns}
+                data={rows}
+                empty="Sin productos en inventario."
+                searchPlaceholder="IMEI, marca, modelo, serial…"
+                filterSlot={
+                    <div className="w-full sm:w-auto sm:min-w-[180px]">
+                        <label className="mb-1 block text-xs font-medium text-[#6B7069]">
+                            Estado
+                        </label>
+                        <Select
+                            value={table.filters.status || 'all'}
+                            onValueChange={(value) =>
+                                table.setFilter(
+                                    'status',
+                                    value === 'all' ? '' : value,
+                                )
+                            }
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Todos" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Todos</SelectItem>
+                                {statusOptions.map((opt) => (
+                                    <SelectItem
+                                        key={opt.value || 'all'}
+                                        value={opt.value || 'all'}
                                     >
-                                        Detalle
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </DataTable>
+                                        {opt.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                }
+                manualPagination={!!paginated}
+                manualFiltering={!!paginated}
+                pageCount={table.pageCount}
+                pagination={table.pagination}
+                onPaginationChange={(updater) => {
+                    const next =
+                        typeof updater === 'function'
+                            ? updater(table.pagination)
+                            : updater;
+                    table.setPage(next.pageIndex + 1);
+                }}
+                globalFilter={table.search}
+                onGlobalFilterChange={table.setSearch}
+                onSearchSubmit={table.submitSearch}
+                from={table.from}
+                to={table.to}
+                total={table.total}
+            />
 
             <Modal show={createOpen} onClose={closeCreate} maxWidth="2xl">
                 <form onSubmit={submitCreate} className="flex min-h-0 flex-1 flex-col">

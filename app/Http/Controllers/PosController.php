@@ -6,7 +6,6 @@ use App\Enums\CashSessionStatus;
 use App\Http\Requests\Sales\CompleteSaleRequest;
 use App\Models\CashSession;
 use App\Models\Product;
-use App\Services\Pos\PosAvailableInventoryCache;
 use App\Services\Pos\PosLookupService;
 use App\Services\Sales\CompleteSaleService;
 use Illuminate\Http\JsonResponse;
@@ -46,25 +45,6 @@ class PosController extends Controller
         ]);
     }
 
-    public function available(
-        Request $request,
-        PosAvailableInventoryCache $cache,
-    ): JsonResponse {
-        $data = $request->validate([
-            'page' => ['nullable', 'integer', 'min:1'],
-        ]);
-
-        $page = (int) ($data['page'] ?? 1);
-        $payload = $cache->page(
-            $request->user()->store_id,
-            $page,
-            $request->user(),
-            $request,
-        );
-
-        return response()->json($payload);
-    }
-
     public function store(
         CompleteSaleRequest $request,
         CompleteSaleService $service,
@@ -91,10 +71,6 @@ class PosController extends Controller
 
         $query = trim((string) ($data['q'] ?? $data['imei'] ?? ''));
         $payload = $lookup->search($request->user(), $query, $request);
-
-        if ($query === '') {
-            return response()->json($payload, 422);
-        }
 
         if (($payload['results'] ?? []) === [] && ! ($payload['exact'] ?? false)) {
             return response()->json($payload, 404);

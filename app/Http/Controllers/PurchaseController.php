@@ -8,8 +8,10 @@ use App\Models\Purchase;
 use App\Services\Purchases\CreatePurchaseService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
 class PurchaseController extends Controller
@@ -18,10 +20,20 @@ class PurchaseController extends Controller
     {
         $storeId = $request->user()->store_id;
 
+        $search = $request->string('search')->toString();
+
         $purchases = Purchase::query()
             ->with(['user:id,name', 'items'])
             ->withCount('items')
             ->when($storeId, fn ($q) => $q->where('store_id', $storeId))
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where(function ($inner) use ($search) {
+                    $inner->where('seller_name', 'like', "%{$search}%")
+                        ->orWhere('seller_document', 'like', "%{$search}%")
+                        ->orWhere('notes', 'like', "%{$search}%")
+                        ->orWhere('id', 'like', "%{$search}%");
+                });
+            })
             ->latest()
             ->paginate(20)
             ->withQueryString();
@@ -37,6 +49,9 @@ class PurchaseController extends Controller
 
         return Inertia::render('Purchases/Index', [
             'purchases' => $purchases,
+            'filters' => [
+                'search' => $search,
+            ],
             'canViewCosts' => $request->user()->canViewCosts(),
         ]);
     }
@@ -95,7 +110,7 @@ class PurchaseController extends Controller
         ]);
     }
 
-    public function pdf(Request $request, Purchase $purchase): \Symfony\Component\HttpFoundation\StreamedResponse
+    public function pdf(Request $request, Purchase $purchase): StreamedResponse
     {
         abort_unless(
             $request->user()->isAdmin() || $request->user()->store_id === $purchase->store_id,
@@ -103,10 +118,10 @@ class PurchaseController extends Controller
         );
 
         abort_unless(
-            $purchase->pdf_path && \Illuminate\Support\Facades\Storage::disk('local')->exists($purchase->pdf_path),
+            $purchase->pdf_path && Storage::disk('local')->exists($purchase->pdf_path),
             404,
         );
 
-        return \Illuminate\Support\Facades\Storage::disk('local')->download($purchase->pdf_path);
+        return Storage::disk('local')->download($purchase->pdf_path);
     }
 }

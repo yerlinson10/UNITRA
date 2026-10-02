@@ -5,15 +5,26 @@ import Money from '@/Components/Money';
 import NumberInput from '@/Components/NumberInput';
 import PageHeader from '@/Components/PageHeader';
 import PrimaryButton from '@/Components/PrimaryButton';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/Components/ui/select';
+import { useServerTable } from '@/hooks/useServerTable';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { CashMovement, CashSession, PageProps, Paginated } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
-import { FormEventHandler } from 'react';
+import { ColumnDef } from '@tanstack/react-table';
+import { FormEventHandler, useMemo } from 'react';
 
 type Props = PageProps<{
     openSession?: (CashSession & { movements?: CashMovement[] }) | null;
     sessions?: Paginated<CashSession>;
     expectedAmount?: number | null;
+    filters?: { search?: string; status?: string };
+    statuses?: Array<{ value: string; label: string }>;
     isAdmin?: boolean;
 }>;
 
@@ -21,9 +32,18 @@ export default function CashIndex({
     openSession = null,
     sessions,
     expectedAmount = null,
+    filters = {},
+    statuses = [],
 }: Props) {
     const openForm = useForm({ opening_amount: '0', notes: '' });
     const closeForm = useForm({ closing_amount: '', notes: '' });
+
+    const table = useServerTable({
+        url: '/cash',
+        paginated: sessions,
+        filters,
+        only: ['sessions', 'filters', 'statuses', 'openSession', 'expectedAmount'],
+    });
 
     const openSessionSubmit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -38,17 +58,82 @@ export default function CashIndex({
 
     const movements = openSession?.movements ?? [];
 
+    const movementColumns = useMemo<ColumnDef<CashMovement>[]>(
+        () => [
+            {
+                accessorKey: 'type',
+                header: 'Tipo',
+                cell: ({ getValue }) => (
+                    <span className="text-sm">{String(getValue())}</span>
+                ),
+            },
+            {
+                accessorKey: 'amount',
+                header: 'Monto',
+                cell: ({ row }) => <Money amount={Number(row.original.amount)} />,
+            },
+            {
+                id: 'notes',
+                accessorFn: (row) => row.notes ?? row.description ?? '',
+                header: 'Notas',
+                cell: ({ getValue }) => (
+                    <span className="text-sm text-[#6B7069]">
+                        {(getValue() as string) || '—'}
+                    </span>
+                ),
+            },
+        ],
+        [],
+    );
+
+    const sessionColumns = useMemo<ColumnDef<CashSession>[]>(
+        () => [
+            {
+                accessorKey: 'status',
+                header: 'Estado',
+                cell: ({ getValue }) => (
+                    <span className="text-sm capitalize">{String(getValue())}</span>
+                ),
+            },
+            {
+                accessorKey: 'opening_amount',
+                header: 'Apertura',
+                cell: ({ row }) => (
+                    <Money amount={Number(row.original.opening_amount)} />
+                ),
+            },
+            {
+                accessorKey: 'closing_amount',
+                header: 'Cierre',
+                cell: ({ row }) =>
+                    row.original.closing_amount != null ? (
+                        <Money amount={Number(row.original.closing_amount)} />
+                    ) : (
+                        '—'
+                    ),
+            },
+            {
+                accessorKey: 'opened_at',
+                header: 'Abierta',
+                cell: ({ row }) => (
+                    <span className="text-sm text-[#6B7069]">
+                        {row.original.opened_at
+                            ? new Date(row.original.opened_at).toLocaleString('es-DO')
+                            : '—'}
+                    </span>
+                ),
+            },
+        ],
+        [],
+    );
+
     return (
         <AuthenticatedLayout title="Caja">
             <Head title="Caja" />
 
             <PageHeader
                 title="Caja"
-                subtitle={
-                    openSession
-                        ? 'Sesión abierta'
-                        : 'Sin sesión abierta'
-                }
+                subtitle={openSession ? 'Sesión abierta' : 'Sin sesión abierta'}
             />
 
             {!openSession ? (
@@ -106,68 +191,72 @@ export default function CashIndex({
                         </form>
                     </div>
 
-                    <DataTable>
-                        <table className="unitra-table">
-                            <thead>
-                                <tr>
-                                    <th>Tipo</th>
-                                    <th>Monto</th>
-                                    <th>Notas</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {movements.map((m) => (
-                                    <tr key={m.id}>
-                                        <td className="text-sm">{String(m.type)}</td>
-                                        <td>
-                                            <Money amount={Number(m.amount)} />
-                                        </td>
-                                        <td className="text-sm text-[#6B7069]">
-                                            {m.description ?? '—'}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </DataTable>
+                    <DataTable
+                        columns={movementColumns}
+                        data={movements}
+                        empty="Sin movimientos en la sesión."
+                        searchPlaceholder="Buscar movimiento…"
+                        initialPageSize={10}
+                    />
                 </div>
             )}
 
-            {sessions?.data && sessions.data.length > 0 && (
-                <div className="mt-8">
-                    <h2 className="mb-3 font-display text-lg font-semibold uppercase">
-                        Historial
-                    </h2>
-                    <DataTable>
-                        <table className="unitra-table">
-                            <thead>
-                                <tr>
-                                    <th>Estado</th>
-                                    <th>Apertura</th>
-                                    <th>Cierre</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {sessions.data.map((s) => (
-                                    <tr key={s.id}>
-                                        <td className="text-sm">{s.status}</td>
-                                        <td>
-                                            <Money amount={Number(s.opening_amount)} />
-                                        </td>
-                                        <td>
-                                            {s.closing_amount != null ? (
-                                                <Money amount={Number(s.closing_amount)} />
-                                            ) : (
-                                                '—'
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </DataTable>
-                </div>
-            )}
+            <div className="mt-8">
+                <h2 className="mb-3 font-display text-lg font-semibold uppercase">
+                    Historial
+                </h2>
+                <DataTable
+                    columns={sessionColumns}
+                    data={sessions?.data ?? []}
+                    empty="Sin sesiones registradas."
+                    searchPlaceholder="Usuario o notas…"
+                    filterSlot={
+                        <div className="w-full sm:w-auto sm:min-w-[180px]">
+                            <label className="mb-1 block text-xs font-medium text-[#6B7069]">
+                                Estado
+                            </label>
+                            <Select
+                                value={table.filters.status || 'all'}
+                                onValueChange={(value) =>
+                                    table.setFilter(
+                                        'status',
+                                        value === 'all' ? '' : value,
+                                    )
+                                }
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Todos" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Todos</SelectItem>
+                                    {statuses.map((opt) => (
+                                        <SelectItem key={opt.value} value={opt.value}>
+                                            {opt.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    }
+                    manualPagination
+                    manualFiltering
+                    pageCount={table.pageCount}
+                    pagination={table.pagination}
+                    onPaginationChange={(updater) => {
+                        const next =
+                            typeof updater === 'function'
+                                ? updater(table.pagination)
+                                : updater;
+                        table.setPage(next.pageIndex + 1);
+                    }}
+                    globalFilter={table.search}
+                    onGlobalFilterChange={table.setSearch}
+                    onSearchSubmit={table.submitSearch}
+                    from={table.from}
+                    to={table.to}
+                    total={table.total}
+                />
+            </div>
         </AuthenticatedLayout>
     );
 }

@@ -2,17 +2,78 @@ import DataTable from '@/Components/DataTable';
 import Money from '@/Components/Money';
 import PageHeader from '@/Components/PageHeader';
 import PrimaryButton from '@/Components/PrimaryButton';
+import { useServerTable } from '@/hooks/useServerTable';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps, Paginated, Purchase } from '@/types';
 import { Head, Link } from '@inertiajs/react';
+import { ColumnDef } from '@tanstack/react-table';
 import { Plus } from 'lucide-react';
+import { useMemo } from 'react';
 
 type Props = PageProps<{
     purchases?: Paginated<Purchase>;
+    filters?: { search?: string };
 }>;
 
-export default function PurchasesIndex({ purchases }: Props) {
+export default function PurchasesIndex({ purchases, filters = {} }: Props) {
     const rows = purchases?.data ?? [];
+    const table = useServerTable({
+        url: '/purchases',
+        paginated: purchases,
+        filters,
+        only: ['purchases', 'filters'],
+    });
+
+    const columns = useMemo<ColumnDef<Purchase>[]>(
+        () => [
+            {
+                accessorKey: 'id',
+                header: '#',
+                cell: ({ row }) => (
+                    <span className="font-medium">#{row.original.id}</span>
+                ),
+            },
+            {
+                accessorKey: 'seller_name',
+                header: 'Vendedor',
+            },
+            {
+                accessorKey: 'seller_document',
+                header: 'Documento',
+                cell: ({ getValue }) => (getValue() as string | null) ?? '—',
+            },
+            {
+                accessorKey: 'total_cost',
+                header: 'Total',
+                cell: ({ row }) => <Money amount={row.original.total_cost} />,
+            },
+            {
+                accessorKey: 'created_at',
+                header: 'Fecha',
+                cell: ({ row }) => (
+                    <span className="text-[#6B7069]">
+                        {row.original.created_at
+                            ? new Date(row.original.created_at).toLocaleString('es-DO')
+                            : '—'}
+                    </span>
+                ),
+            },
+            {
+                id: 'actions',
+                header: 'Ver',
+                meta: { headerClassName: 'text-right', cellClassName: 'text-right' },
+                cell: ({ row }) => (
+                    <Link
+                        href={`/purchases/${row.original.id}`}
+                        className="text-sm font-medium underline-offset-2 hover:underline"
+                    >
+                        Detalle
+                    </Link>
+                ),
+            },
+        ],
+        [],
+    );
 
     return (
         <AuthenticatedLayout title="Compras">
@@ -31,45 +92,29 @@ export default function PurchasesIndex({ purchases }: Props) {
                 }
             />
 
-            <DataTable isEmpty={rows.length === 0} empty="No hay compras registradas.">
-                <table className="unitra-table">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Vendedor</th>
-                            <th>Documento</th>
-                            <th>Total</th>
-                            <th>Fecha</th>
-                            <th className="text-right">Ver</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {rows.map((purchase) => (
-                            <tr key={purchase.id}>
-                                <td className="font-medium">#{purchase.id}</td>
-                                <td>{purchase.seller_name}</td>
-                                <td>{purchase.seller_document ?? '—'}</td>
-                                <td>
-                                    <Money amount={purchase.total_cost} />
-                                </td>
-                                <td className="text-[#6B7069]">
-                                    {purchase.created_at
-                                        ? new Date(purchase.created_at).toLocaleString('es-DO')
-                                        : '—'}
-                                </td>
-                                <td className="text-right">
-                                    <Link
-                                        href={`/purchases/${purchase.id}`}
-                                        className="text-sm font-medium underline-offset-2 hover:underline"
-                                    >
-                                        Detalle
-                                    </Link>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </DataTable>
+            <DataTable
+                columns={columns}
+                data={rows}
+                empty="No hay compras registradas."
+                searchPlaceholder="Vendedor, documento, notas, #…"
+                manualPagination
+                manualFiltering
+                pageCount={table.pageCount}
+                pagination={table.pagination}
+                onPaginationChange={(updater) => {
+                    const next =
+                        typeof updater === 'function'
+                            ? updater(table.pagination)
+                            : updater;
+                    table.setPage(next.pageIndex + 1);
+                }}
+                globalFilter={table.search}
+                onGlobalFilterChange={table.setSearch}
+                onSearchSubmit={table.submitSearch}
+                from={table.from}
+                to={table.to}
+                total={table.total}
+            />
         </AuthenticatedLayout>
     );
 }

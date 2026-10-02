@@ -6,14 +6,17 @@ import PageHeader from '@/Components/PageHeader';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import TextInput from '@/Components/TextInput';
+import { useServerTable } from '@/hooks/useServerTable';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps, Paginated, Product } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
+import { ColumnDef } from '@tanstack/react-table';
 import { Plus } from 'lucide-react';
-import { FormEventHandler, useState } from 'react';
+import { FormEventHandler, useCallback, useMemo, useState } from 'react';
 
 type Props = PageProps<{
     products?: Paginated<Product>;
+    filters?: { search?: string };
 }>;
 
 type BrandForm = {
@@ -30,13 +33,20 @@ const emptyForm: BrandForm = {
     color: '',
 };
 
-export default function ProductsIndex({ products }: Props) {
+export default function ProductsIndex({ products, filters = {} }: Props) {
     const rows = products?.data ?? [];
     const [createOpen, setCreateOpen] = useState(false);
     const [editing, setEditing] = useState<Product | null>(null);
 
     const createForm = useForm<BrandForm>({ ...emptyForm });
     const editForm = useForm<BrandForm>({ ...emptyForm });
+
+    const table = useServerTable({
+        url: '/products',
+        paginated: products,
+        filters,
+        only: ['products', 'filters'],
+    });
 
     const closeCreate = () => {
         setCreateOpen(false);
@@ -56,16 +66,60 @@ export default function ProductsIndex({ products }: Props) {
         editForm.reset();
     };
 
-    const openEdit = (product: Product) => {
-        editForm.clearErrors();
-        editForm.setData({
-            brand: product.brand ?? '',
-            model: product.model ?? '',
-            storage: product.storage ?? '',
-            color: product.color ?? '',
-        });
-        setEditing(product);
-    };
+    const openEdit = useCallback(
+        (product: Product) => {
+            editForm.clearErrors();
+            editForm.setData({
+                brand: product.brand ?? '',
+                model: product.model ?? '',
+                storage: product.storage ?? '',
+                color: product.color ?? '',
+            });
+            setEditing(product);
+        },
+        [editForm],
+    );
+
+    const columns = useMemo<ColumnDef<Product>[]>(
+        () => [
+            {
+                accessorKey: 'brand',
+                header: 'Marca',
+                cell: ({ row }) => (
+                    <span className="font-medium">{row.original.brand}</span>
+                ),
+            },
+            {
+                accessorKey: 'model',
+                header: 'Modelo',
+            },
+            {
+                accessorKey: 'storage',
+                header: 'Almacenamiento',
+                cell: ({ getValue }) => (getValue() as string | null) ?? '—',
+            },
+            {
+                accessorKey: 'color',
+                header: 'Color',
+                cell: ({ getValue }) => (getValue() as string | null) ?? '—',
+            },
+            {
+                id: 'actions',
+                header: 'Acciones',
+                meta: { headerClassName: 'text-right', cellClassName: 'text-right' },
+                cell: ({ row }) => (
+                    <button
+                        type="button"
+                        onClick={() => openEdit(row.original)}
+                        className="text-sm font-medium text-[#111315] underline-offset-2 hover:underline"
+                    >
+                        Editar
+                    </button>
+                ),
+            },
+        ],
+        [openEdit],
+    );
 
     const submitCreate: FormEventHandler = (e) => {
         e.preventDefault();
@@ -100,38 +154,29 @@ export default function ProductsIndex({ products }: Props) {
                 }
             />
 
-            <DataTable isEmpty={rows.length === 0} empty="No hay Marcas registradas.">
-                <table className="unitra-table">
-                    <thead>
-                        <tr>
-                            <th>Marca</th>
-                            <th>Modelo</th>
-                            <th>Almacenamiento</th>
-                            <th>Color</th>
-                            <th className="text-right">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {rows.map((product) => (
-                            <tr key={product.id}>
-                                <td className="font-medium">{product.brand}</td>
-                                <td>{product.model}</td>
-                                <td>{product.storage ?? '—'}</td>
-                                <td>{product.color ?? '—'}</td>
-                                <td className="text-right">
-                                    <button
-                                        type="button"
-                                        onClick={() => openEdit(product)}
-                                        className="text-sm font-medium text-[#111315] underline-offset-2 hover:underline"
-                                    >
-                                        Editar
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </DataTable>
+            <DataTable
+                columns={columns}
+                data={rows}
+                empty="No hay Marcas registradas."
+                searchPlaceholder="Marca, modelo, SKU…"
+                manualPagination
+                manualFiltering
+                pageCount={table.pageCount}
+                pagination={table.pagination}
+                onPaginationChange={(updater) => {
+                    const next =
+                        typeof updater === 'function'
+                            ? updater(table.pagination)
+                            : updater;
+                    table.setPage(next.pageIndex + 1);
+                }}
+                globalFilter={table.search}
+                onGlobalFilterChange={table.setSearch}
+                onSearchSubmit={table.submitSearch}
+                from={table.from}
+                to={table.to}
+                total={table.total}
+            />
 
             <Modal show={createOpen} onClose={closeCreate} maxWidth="lg">
                 <form onSubmit={submitCreate} className="p-5">
