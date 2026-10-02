@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="utf-8">
-    <title>Factura {{ $invoice->number }} — UNITRA</title>
+    <title>Factura {{ $invoice->number }}</title>
     <style>
         :root {
             --ink: {{ $brand['ink'] ?? '#111315' }};
@@ -12,6 +12,7 @@
             --muted: {{ $brand['text_secondary'] ?? '#6B7069' }};
             --text: {{ $brand['text_primary'] ?? '#252925' }};
         }
+        @page { size: A4; margin: 12mm; }
         * { box-sizing: border-box; }
         body {
             margin: 0;
@@ -21,7 +22,7 @@
             font-size: 12px;
             line-height: 1.45;
         }
-        .page { padding: 36px 40px; }
+        .page { padding: 12px 8px; }
         .header {
             display: flex;
             justify-content: space-between;
@@ -29,40 +30,26 @@
             border-bottom: 3px solid var(--ink);
             padding-bottom: 18px;
             margin-bottom: 24px;
+            gap: 16px;
         }
-        .brand-mark {
-            display: flex;
-            align-items: center;
-            gap: 12px;
+        .store-logo {
+            max-height: 48px;
+            max-width: 140px;
+            display: block;
+            margin-bottom: 8px;
+            object-fit: contain;
         }
-        .symbol {
-            width: 36px;
-            height: 36px;
-            border: 3px solid var(--ink);
-            position: relative;
-        }
-        .symbol::after {
-            content: '';
-            position: absolute;
-            right: -3px;
-            top: 12px;
-            width: 18px;
-            height: 3px;
-            background: var(--lime);
-        }
-        .brand-name {
+        .store-name {
             font-family: "Barlow Condensed", Impact, sans-serif;
-            font-size: 28px;
+            font-size: 26px;
             font-weight: 700;
             letter-spacing: 0.04em;
             color: var(--ink);
-            margin: 0;
+            margin: 0 0 4px;
         }
-        .brand-tag {
+        .store-meta {
             color: var(--muted);
             font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
         }
         .doc-meta { text-align: right; }
         .doc-meta h2 {
@@ -134,30 +121,60 @@
             color: var(--ink);
         }
         .footer {
-            margin-top: 40px;
+            margin-top: 24px;
             padding-top: 16px;
             border-top: 1px solid var(--border);
             color: var(--muted);
             font-size: 10px;
             display: flex;
             justify-content: space-between;
+            gap: 12px;
         }
-        .unit-rail {
-            color: var(--muted);
-            letter-spacing: 0.2em;
+        .warranty-block {
+            margin-top: 28px;
+            padding: 14px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+        }
+        .warranty-title {
+            font-family: "Barlow Condensed", Impact, sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            color: var(--ink);
+        }
+        .warranty-table { margin-bottom: 12px; }
+        .warranty-table th, .warranty-table td {
+            padding: 6px 8px;
+            font-size: 11px;
+        }
+        .warranty-policy, .warranty-notes {
+            margin: 8px 0 0;
             font-size: 10px;
+            color: var(--text);
+            line-height: 1.5;
+        }
+        .no-print { margin: 12px 0; }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: #fff; }
         }
     </style>
 </head>
 <body>
+@if(! empty($autoPrint))
+<script>window.addEventListener('load', function () { window.print(); });</script>
+@endif
 <div class="page">
+    <div class="no-print" style="text-align:right;">
+        <button type="button" onclick="window.print()" style="padding:8px 14px;cursor:pointer;">Imprimir</button>
+    </div>
+
     <div class="header">
-        <div class="brand-mark">
-            <div class="symbol"></div>
-            <div>
-                <p class="brand-name">UNITRA</p>
-                <div class="brand-tag">Inventory · Trade-In · POS</div>
-            </div>
+        <div>
+            @include('pdf.partials.store-header')
         </div>
         <div class="doc-meta">
             <h2>FACTURA</h2>
@@ -168,12 +185,6 @@
     </div>
 
     <div class="grid">
-        <div>
-            <div class="label">Tienda</div>
-            <div><strong>{{ $invoice->store?->name }}</strong></div>
-            <div>{{ $invoice->store?->address }}</div>
-            <div>{{ $invoice->store?->phone }}</div>
-        </div>
         <div>
             <div class="label">Cliente</div>
             <div><strong>{{ $invoice->customer_name ?: 'Cliente general' }}</strong></div>
@@ -186,8 +197,6 @@
             <div>{{ $invoice->payment_method?->label() ?? $invoice->payment_method }}</div>
         </div>
     </div>
-
-    <div class="unit-rail">01 · 02 · 03 · 04 · 05 · UNIDADES</div>
 
     <table>
         <thead>
@@ -244,9 +253,11 @@
         <div class="row"><span>Pagado</span><span>{{ \App\Support\Money::format($invoice->amount_paid) }}</span></div>
     </div>
 
+    @include('pdf.partials.warranty-block')
+
     <div class="footer">
-        <div>UNITRA — Controla cada unidad. Mueve tu negocio.</div>
-        <div>Documento interno · e-CF: {{ $invoice->ecf_status?->label() ?? 'No aplica' }}</div>
+        <div>{{ $invoice->store?->name ?? config('unitra.name') }} — Conserve este documento como comprobante de garantía.</div>
+        <div>e-CF: {{ $invoice->ecf_status?->label() ?? 'No aplica' }}</div>
     </div>
 </div>
 </body>

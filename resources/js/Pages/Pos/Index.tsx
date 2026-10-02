@@ -32,7 +32,6 @@ export default function PosIndex({
     const { flash } = usePage<PageProps>().props;
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<PosLookupItem[]>([]);
-    const [searchOpen, setSearchOpen] = useState(false);
     const [cart, setCart] = useState<PosCartItem[]>([]);
     const [tradeIns, setTradeIns] = useState<PosTradeInForm[]>([]);
     const [draft, setDraft] = useState<PosTradeInForm | null>(null);
@@ -43,7 +42,8 @@ export default function PosIndex({
     const [localToast, setLocalToast] = useState<string | null>(null);
     const debounceRef = useRef<number | null>(null);
     const skipDebounceRef = useRef(false);
-    const blurCloseRef = useRef<number | null>(null);
+    const lookupRequestRef = useRef(0);
+    const searchMountedRef = useRef(false);
 
     const form = useForm({
         customer_name: '',
@@ -97,8 +97,6 @@ export default function PosIndex({
 
         setCart((prev) => [...prev, item]);
         setSearchQuery('');
-        setSearchResults([]);
-        setSearchOpen(false);
         setLookupError(null);
         if (feedback) {
             showToast(feedback);
@@ -111,6 +109,7 @@ export default function PosIndex({
 
     const runLookup = async (rawQuery: string, { autoAddExact = false } = {}) => {
         const q = rawQuery.trim();
+        const requestId = ++lookupRequestRef.current;
 
         setLookingUp(true);
         setLookupError(null);
@@ -126,6 +125,10 @@ export default function PosIndex({
                 },
                 credentials: 'same-origin',
             });
+
+            if (requestId !== lookupRequestRef.current) {
+                return;
+            }
 
             const payload = await res.json();
 
@@ -144,15 +147,21 @@ export default function PosIndex({
             setSearchResults((payload.results ?? []) as PosLookupItem[]);
             setLookupError(null);
         } catch {
+            if (requestId !== lookupRequestRef.current) {
+                return;
+            }
             setLookupError('No se pudo buscar.');
             setSearchResults([]);
         } finally {
-            setLookingUp(false);
+            if (requestId === lookupRequestRef.current) {
+                setLookingUp(false);
+            }
         }
     };
 
     useEffect(() => {
-        if (!searchOpen) {
+        if (!searchMountedRef.current) {
+            searchMountedRef.current = true;
             return;
         }
 
@@ -166,6 +175,11 @@ export default function PosIndex({
         }
 
         const q = searchQuery.trim();
+
+        // Show loading right away while the user types, before the request fires.
+        setLookingUp(true);
+        setLookupError(null);
+
         debounceRef.current = window.setTimeout(() => {
             void runLookup(q);
         }, q.length === 0 ? 0 : 150);
@@ -176,7 +190,7 @@ export default function PosIndex({
             }
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchQuery, searchOpen]);
+    }, [searchQuery]);
 
     const searchUnits: FormEventHandler = (e) => {
         e.preventDefault();
@@ -187,24 +201,16 @@ export default function PosIndex({
         void runLookup(searchQuery, { autoAddExact: true });
     };
 
-    const openSearch = () => {
-        if (blurCloseRef.current) {
-            window.clearTimeout(blurCloseRef.current);
-            blurCloseRef.current = null;
+    const browseOnFocus = () => {
+        if (searchQuery.trim() !== '' || lookingUp) {
+            return;
         }
-        setSearchOpen(true);
-    };
 
-    const closeSearch = () => {
-        if (blurCloseRef.current) {
-            window.clearTimeout(blurCloseRef.current);
+        if (searchResults.length > 0) {
+            return;
         }
-        // Delay so clicking a result still registers before the panel closes.
-        blurCloseRef.current = window.setTimeout(() => {
-            setSearchOpen(false);
-            setLookupError(null);
-            blurCloseRef.current = null;
-        }, 150);
+
+        void runLookup('');
     };
 
     const submitSale: FormEventHandler = (e) => {
@@ -282,9 +288,7 @@ export default function PosIndex({
                         query={searchQuery}
                         onQueryChange={setSearchQuery}
                         onSubmit={searchUnits}
-                        onFocus={openSearch}
-                        onBlur={closeSearch}
-                        open={searchOpen}
+                        onFocus={browseOnFocus}
                         lookingUp={lookingUp}
                         error={lookupError}
                         results={searchResults.filter(

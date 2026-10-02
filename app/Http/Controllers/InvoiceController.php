@@ -7,10 +7,12 @@ use App\Enums\InvoiceStatus;
 use App\Http\Requests\Invoices\VoidInvoiceRequest;
 use App\Http\Resources\InvoiceResource;
 use App\Models\Invoice;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\View\View;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -63,10 +65,49 @@ class InvoiceController extends Controller
 
         $invoice->load(['items.inventoryItem.product', 'tradeIns.product', 'user', 'store']);
 
+        $defaultFormat = $invoice->store?->default_print_format ?? '80mm';
+
         return Inertia::render('Invoices/Show', [
             'invoice' => (new InvoiceResource($invoice))->resolve(),
             'canViewCosts' => $request->user()->canViewCosts(),
             'canVoid' => $request->user()->can('void', $invoice),
+            'defaultPrintFormat' => in_array($defaultFormat, ['80mm', 'a4'], true) ? $defaultFormat : '80mm',
+            'autoPrint' => (bool) $request->session()->pull('auto_print', false),
+            'printFormat' => $request->session()->pull('print_format', $defaultFormat),
+        ]);
+    }
+
+    public function print(Request $request, Invoice $invoice): View
+    {
+        $this->authorize('view', $invoice);
+
+        $format = $request->string('format')->toString() ?: '80mm';
+        if (! in_array($format, ['80mm', 'a4'], true)) {
+            $format = '80mm';
+        }
+
+        $invoice->load(['items.inventoryItem', 'tradeIns', 'store', 'user']);
+
+        $view = $format === 'a4' ? 'pdf.invoice' : 'pdf.invoice-80mm';
+
+        return view($view, [
+            'invoice' => $invoice,
+            'brand' => config('unitra.brand'),
+            'format' => $format,
+            'autoPrint' => $request->boolean('auto'),
+        ]);
+    }
+
+    public function pdfStatus(Request $request, Invoice $invoice): JsonResponse
+    {
+        $this->authorize('view', $invoice);
+
+        $ready = $invoice->pdf_path && Storage::disk('local')->exists($invoice->pdf_path);
+
+        return response()->json([
+            'pdf_status' => $invoice->pdf_status ?? ($ready ? 'ready' : 'pending'),
+            'pdf_url' => $ready ? route('invoices.pdf', $invoice) : null,
+            'ready' => $ready,
         ]);
     }
 

@@ -12,6 +12,8 @@ import {
     LogOut,
     Menu,
     X,
+    Settings,
+    Users,
 } from 'lucide-react';
 import { PropsWithChildren, ReactNode, useMemo, useState } from 'react';
 import { PageProps } from '@/types';
@@ -21,6 +23,7 @@ type NavItem = {
     href: string;
     icon: typeof LayoutDashboard;
     match: string[];
+    adminOnly?: boolean;
 };
 
 const NAV: NavItem[] = [
@@ -71,6 +74,21 @@ const NAV: NavItem[] = [
         href: '/reports',
         icon: BarChart3,
         match: ['reports', '/reports'],
+        adminOnly: true,
+    },
+    {
+        label: 'Mi tienda',
+        href: '/settings/store',
+        icon: Settings,
+        match: ['settings/store', '/settings/store'],
+        adminOnly: true,
+    },
+    {
+        label: 'Usuarios',
+        href: '/settings/users',
+        icon: Users,
+        match: ['settings/users', '/settings/users'],
+        adminOnly: true,
     },
 ];
 
@@ -91,23 +109,78 @@ const ROLE_LABELS: Record<string, string> = {
     viewer: 'Visor',
 };
 
+type SharedAuth = PageProps & {
+    auth: {
+        user: PageProps['auth']['user'] & {
+            store?: {
+                id: number;
+                name: string;
+                code?: string;
+                logo_url?: string | null;
+            } | null;
+        };
+    };
+    canManageStore?: boolean;
+    canManageUsers?: boolean;
+};
+
 export default function AuthenticatedLayout({
     children,
     header,
     title,
 }: PropsWithChildren<{ header?: ReactNode; title?: string }>) {
-    const page = usePage<PageProps>();
+    const page = usePage<SharedAuth>();
     const user = page.props.auth.user;
     const [mobileOpen, setMobileOpen] = useState(false);
+    const canManageStore = page.props.canManageStore ?? user.role === 'admin';
+    const canManageUsers = page.props.canManageUsers ?? user.role === 'admin';
+    const storeName = user.store?.name ?? 'UNITRA';
+    const storeLogo = user.store?.logo_url ?? null;
 
     const roleLabel = useMemo(
         () => ROLE_LABELS[user.role ?? ''] ?? user.role ?? 'Usuario',
         [user.role],
     );
 
+    const navItems = useMemo(
+        () =>
+            NAV.filter((item) => {
+                if (!item.adminOnly) {
+                    return true;
+                }
+                if (item.href === '/settings/store') {
+                    return canManageStore;
+                }
+                if (item.href === '/settings/users') {
+                    return canManageUsers;
+                }
+                return user.role === 'admin';
+            }),
+        [canManageStore, canManageUsers, user.role],
+    );
+
+    const BrandMark = () => (
+        <Link href="/dashboard" className="flex items-center gap-2">
+            {storeLogo ? (
+                <img
+                    src={storeLogo}
+                    alt={storeName}
+                    className="h-7 w-7 rounded object-contain"
+                />
+            ) : (
+                <span className="flex h-7 w-7 items-center justify-center rounded border border-[#B8E34B]/40 text-xs font-bold text-[#B8E34B]">
+                    {(storeName[0] ?? 'U').toUpperCase()}
+                </span>
+            )}
+            <span className="truncate font-display text-xl font-semibold tracking-wider">
+                {storeName}
+            </span>
+        </Link>
+    );
+
     const NavList = ({ onNavigate }: { onNavigate?: () => void }) => (
         <nav className="flex flex-1 flex-col gap-0.5 px-2 py-3">
-            {NAV.map((item) => {
+            {navItems.map((item) => {
                 const active = isActive(
                     item.match,
                     page.url,
@@ -140,17 +213,9 @@ export default function AuthenticatedLayout({
         <div className="flex min-h-screen bg-[#F5F6F3]">
             <FlashToast />
 
-            {/* Desktop sidebar */}
             <aside className="hidden w-56 shrink-0 flex-col bg-[#111315] text-white lg:flex">
                 <div className="flex h-14 items-center border-b border-white/10 px-4">
-                    <Link href="/dashboard" className="flex items-center gap-2">
-                        <span className="flex h-7 w-7 items-center justify-center rounded border border-[#B8E34B]/40 text-xs font-bold text-[#B8E34B]">
-                            U
-                        </span>
-                        <span className="font-display text-xl font-semibold tracking-wider">
-                            UNITRA
-                        </span>
-                    </Link>
+                    <BrandMark />
                 </div>
                 <NavList />
                 <div className="border-t border-white/10 px-4 py-3 text-[11px] text-white/40">
@@ -158,7 +223,6 @@ export default function AuthenticatedLayout({
                 </div>
             </aside>
 
-            {/* Mobile drawer */}
             {mobileOpen && (
                 <div className="fixed inset-0 z-40 flex lg:hidden">
                     <button
@@ -169,9 +233,7 @@ export default function AuthenticatedLayout({
                     />
                     <aside className="relative z-10 flex h-full w-64 flex-col bg-[#111315] text-white">
                         <div className="flex h-14 items-center justify-between border-b border-white/10 px-4">
-                            <span className="font-display text-xl font-semibold tracking-wider">
-                                UNITRA
-                            </span>
+                            <BrandMark />
                             <button
                                 type="button"
                                 onClick={() => setMobileOpen(false)}
@@ -205,7 +267,7 @@ export default function AuthenticatedLayout({
                                 header
                             ) : (
                                 <p className="text-sm text-[#6B7069]">
-                                    UNITRA POS
+                                    {storeName} POS
                                 </p>
                             )}
                         </div>

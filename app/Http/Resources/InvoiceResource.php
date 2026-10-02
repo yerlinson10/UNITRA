@@ -2,10 +2,11 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Invoice;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin \App\Models\Invoice */
+/** @mixin Invoice */
 class InvoiceResource extends JsonResource
 {
     public function toArray(Request $request): array
@@ -26,7 +27,10 @@ class InvoiceResource extends JsonResource
             'status' => $this->status?->value ?? $this->status,
             'ecf_status' => $this->ecf_status?->value ?? $this->ecf_status,
             'pdf_path' => $this->pdf_path,
-            'pdf_status' => $this->pdf_status ?? null,
+            'pdf_status' => $this->pdf_status ?? 'pending',
+            'pdf_url' => $this->pdf_path
+                ? route('invoices.pdf', $this->resource)
+                : null,
             'voided_at' => $this->voided_at,
             'void_reason' => $this->void_reason,
             'items' => $this->whenLoaded('items', function () use ($canViewCosts) {

@@ -57,9 +57,18 @@ class PosController extends Controller
                 ->with('error', $e->getMessage());
         }
 
+        $invoice->loadMissing('store');
+
         return redirect()
             ->route('invoices.show', $invoice)
-            ->with('success', "Venta {$invoice->number} completada.");
+            ->with('success', "Venta {$invoice->number} completada.")
+            ->with('auto_print', true)
+            ->with(
+                'print_format',
+                $invoice->store?->default_print_format
+                    ?? $request->user()->store?->default_print_format
+                    ?? '80mm',
+            );
     }
 
     public function lookupImei(Request $request, PosLookupService $lookup): JsonResponse

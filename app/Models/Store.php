@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
+use Database\Factories\StoreFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class Store extends Model
 {
-    /** @use HasFactory<\Database\Factories\StoreFactory> */
+    /** @use HasFactory<StoreFactory> */
     use HasFactory;
 
     protected $fillable = [
@@ -16,6 +18,11 @@ class Store extends Model
         'code',
         'address',
         'phone',
+        'logo_path',
+        'legal_name',
+        'rnc',
+        'warranty_notes',
+        'default_print_format',
         'is_active',
     ];
 
@@ -54,5 +61,14 @@ class Store extends Model
     public function cashSessions(): HasMany
     {
         return $this->hasMany(CashSession::class);
+    }
+
+    public function logoUrl(): ?string
+    {
+        if (! $this->logo_path) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($this->logo_path);
     }
 }

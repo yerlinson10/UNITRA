@@ -26,6 +26,12 @@ export interface Store {
     name: string;
     code?: string;
     address?: string | null;
+    phone?: string | null;
+    legal_name?: string | null;
+    rnc?: string | null;
+    warranty_notes?: string | null;
+    default_print_format?: '80mm' | 'a4';
+    logo_url?: string | null;
 }
 
 export interface Product {
@@ -119,15 +125,18 @@ export interface Invoice {
     status: 'open' | 'paid' | 'void' | string;
     payment_method?: PaymentMethod | string;
     subtotal: number;
+    trade_in_credit?: number;
     trade_in_total?: number;
     amount_due: number;
     voided_at?: string | null;
     pdf_url?: string | null;
+    pdf_status?: 'pending' | 'processing' | 'ready' | 'failed' | string | null;
     items?: SaleItem[];
     trade_ins?: TradeIn[];
     created_at?: string;
     user?: User;
     customer_name?: string | null;
+    customer_phone?: string | null;
 }
 
 export interface CashSession {

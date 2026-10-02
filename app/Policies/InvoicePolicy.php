@@ -19,7 +19,11 @@ class InvoicePolicy
 
     public function void(User $user, Invoice $invoice): bool
     {
-        return $user->isAdmin() && ! $invoice->isVoid();
+        if ($invoice->isVoid()) {
+            return false;
+        }
+
+        return $user->can('invoices.void') || $user->isAdmin();
     }
 
     public function viewCost(User $user, ?Invoice $invoice = null): bool

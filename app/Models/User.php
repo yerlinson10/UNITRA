@@ -11,13 +11,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password', 'role', 'store_id'])]
+#[Fillable(['name', 'email', 'password', 'role', 'store_id', 'is_active'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    use HasRoles {
+        hasRole as spatieHasRole;
+    }
 
     protected function casts(): array
     {
@@ -25,6 +30,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'role' => UserRole::class,
+            'is_active' => 'boolean',
         ];
     }
 
@@ -55,26 +61,47 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return $this->role === UserRole::Admin;
+        return $this->role === UserRole::Admin || $this->spatieHasRole('admin');
     }
 
     public function isCashier(): bool
     {
-        return $this->role === UserRole::Cashier;
+        return $this->role === UserRole::Cashier || $this->spatieHasRole('cashier');
     }
 
     public function canViewCosts(): bool
     {
-        return $this->isAdmin();
+        return $this->isAdmin() || $this->can('costs.view');
     }
 
-    public function hasRole(UserRole|string ...$roles): bool
+    public function hasAppRole(UserRole|string ...$roles): bool
     {
         $values = array_map(
             fn (UserRole|string $role) => $role instanceof UserRole ? $role->value : $role,
             $roles,
         );
 
-        return in_array($this->role?->value, $values, true);
+        if (in_array($this->role?->value, $values, true)) {
+            return true;
+        }
+
+        foreach ($values as $value) {
+            if ($this->spatieHasRole($value)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function assignAppRole(UserRole|string $role): void
+    {
+        $value = $role instanceof UserRole ? $role->value : $role;
+
+        $this->forceFill([
+            'role' => $value,
+        ])->save();
+
+        $this->syncRoles([$value]);
     }
 }

@@ -26,6 +26,7 @@ class UserFactory extends Factory
             'remember_token' => Str::random(10),
             'role' => UserRole::Cashier,
             'store_id' => null,
+            'is_active' => true,
         ];
     }
 

@@ -93,4 +93,23 @@
     .unitra-table tbody tr:hover {
         background-color: #fafbf8;
     }
+
+    .unitra-filepond .filepond--panel-root {
+        background-color: var(--unitra-bg);
+        border-radius: 0.5rem;
+    }
+
+    .unitra-filepond .filepond--drop-label {
+        color: var(--unitra-text-secondary);
+        font-size: 0.875rem;
+    }
+
+    .unitra-filepond .filepond--label-action {
+        color: var(--unitra-ink);
+        text-decoration-color: var(--unitra-lime);
+    }
+
+    .unitra-filepond .filepond--item-panel {
+        background-color: var(--unitra-ink);
+    }
 }

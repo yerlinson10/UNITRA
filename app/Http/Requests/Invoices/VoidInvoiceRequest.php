@@ -8,7 +8,11 @@ class VoidInvoiceRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->isAdmin() ?? false;
+        $user = $this->user();
+
+        return $user
+            ? ($user->can('invoices.void') || $user->isAdmin())
+            : false;
     }
 
     public function rules(): array

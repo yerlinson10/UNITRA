@@ -2,9 +2,16 @@ import DataTable from '@/Components/DataTable';
 import Money from '@/Components/Money';
 import NumberInput from '@/Components/NumberInput';
 import { ColumnDef } from '@tanstack/react-table';
-import { Trash2 } from 'lucide-react';
-import { useMemo } from 'react';
-import { PosCartItem, cartPriceShortcut, isBelowMinPrice } from './types';
+import { Info, Trash2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import PosItemDetailModal from './PosItemDetailModal';
+import {
+    PosCartItem,
+    PosDeviceDetails,
+    cartPriceShortcut,
+    cartToDeviceDetails,
+    isBelowMinPrice,
+} from './types';
 
 type Props = {
     cart: PosCartItem[];
@@ -19,6 +26,8 @@ export default function PosCart({
     onRemove,
     canViewCosts,
 }: Props) {
+    const [detail, setDetail] = useState<PosDeviceDetails | null>(null);
+
     const columns = useMemo<ColumnDef<PosCartItem>[]>(
         () => [
             {
@@ -139,14 +148,27 @@ export default function PosCart({
                 header: '',
                 meta: { cellClassName: 'text-right' },
                 cell: ({ row }) => (
-                    <button
-                        type="button"
-                        onClick={() => onRemove(row.original.inventory_item_id)}
-                        className="rounded-md border border-[#E3E5E0] p-2 text-[#DC4444] hover:bg-[#DC4444]/5"
-                        aria-label="Quitar"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </button>
+                    <div className="flex items-center justify-end gap-1.5">
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setDetail(cartToDeviceDetails(row.original))
+                            }
+                            className="rounded-md border border-[#E3E5E0] p-2 text-[#252925] hover:bg-[#F5F6F3]"
+                            aria-label="Ver detalle"
+                            title="Ver detalle"
+                        >
+                            <Info className="h-4 w-4" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => onRemove(row.original.inventory_item_id)}
+                            className="rounded-md border border-[#E3E5E0] p-2 text-[#DC4444] hover:bg-[#DC4444]/5"
+                            aria-label="Quitar"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </button>
+                    </div>
                 ),
             },
         ],
@@ -172,6 +194,13 @@ export default function PosCart({
                 showSearch={cart.length > 3}
                 showPagination={false}
                 getRowId={(row) => String(row.inventory_item_id)}
+            />
+
+            <PosItemDetailModal
+                show={detail !== null}
+                device={detail}
+                canViewCosts={canViewCosts}
+                onClose={() => setDetail(null)}
             />
         </div>
     );

@@ -9,6 +9,8 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\StoreSettingsController;
+use App\Http\Controllers\UserManagementController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -44,6 +46,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
     Route::post('/invoices/{invoice}/void', [InvoiceController::class, 'void'])->name('invoices.void');
     Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoices.pdf');
+    Route::get('/invoices/{invoice}/pdf-status', [InvoiceController::class, 'pdfStatus'])->name('invoices.pdf-status');
+    Route::get('/invoices/{invoice}/print', [InvoiceController::class, 'print'])->name('invoices.print');
 
     Route::get('/cash', [CashSessionController::class, 'index'])->name('cash.index');
     Route::post('/cash', [CashSessionController::class, 'store'])->name('cash.store');
@@ -53,6 +57,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/reports', [ReportController::class, 'index'])
         ->middleware('role:admin')
         ->name('reports.index');
+
+    Route::get('/settings/store', [StoreSettingsController::class, 'edit'])->name('settings.store.edit');
+    Route::post('/settings/store', [StoreSettingsController::class, 'update'])->name('settings.store.update');
+
+    Route::get('/settings/users', [UserManagementController::class, 'index'])->name('settings.users.index');
+    Route::post('/settings/users', [UserManagementController::class, 'store'])->name('settings.users.store');
+    Route::put('/settings/users/{managedUser}', [UserManagementController::class, 'update'])->name('settings.users.update');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

@@ -26,14 +26,19 @@ class GenerateInvoicePdf implements ShouldQueue
             ->with(['items.inventoryItem', 'tradeIns', 'store', 'user'])
             ->findOrFail($this->invoiceId);
 
+        $invoice->update(['pdf_status' => 'processing']);
+
         $html = view('pdf.invoice', [
             'invoice' => $invoice,
             'brand' => config('unitra.brand'),
+            'format' => 'a4',
         ])->render();
 
         try {
             $pdf = $gotenberg->htmlToPdf($html, "invoice-{$invoice->number}.pdf");
         } catch (Throwable $e) {
+            $invoice->update(['pdf_status' => 'failed']);
+
             Log::warning('Invoice PDF generation failed', [
                 'invoice_id' => $invoice->id,
                 'error' => $e->getMessage(),
@@ -45,6 +50,16 @@ class GenerateInvoicePdf implements ShouldQueue
         $path = "invoices/{$invoice->store_id}/{$invoice->number}.pdf";
         Storage::disk('local')->put($path, $pdf);
 
-        $invoice->update(['pdf_path' => $path]);
+        $invoice->update([
+            'pdf_path' => $path,
+            'pdf_status' => 'ready',
+        ]);
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        Invoice::query()
+            ->whereKey($this->invoiceId)
+            ->update(['pdf_status' => 'failed']);
     }
 }

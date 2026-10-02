@@ -53,6 +53,8 @@ class HandleInertiaRequests extends Middleware
                         'id' => $user->store->id,
                         'name' => $user->store->name,
                         'code' => $user->store->code,
+                        'logo_url' => $user->store->logoUrl(),
+                        'default_print_format' => $user->store->default_print_format ?? '80mm',
                     ] : null,
                     'email_verified_at' => $user->email_verified_at,
                 ] : null,
@@ -60,8 +62,16 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
+                'auto_print' => fn () => $request->session()->get('auto_print'),
+                'print_format' => fn () => $request->session()->get('print_format'),
             ],
             'canViewCosts' => fn () => $user?->canViewCosts() ?? false,
+            'canManageStore' => fn () => $user
+                ? ($user->can('store.update') || $user->isAdmin())
+                : false,
+            'canManageUsers' => fn () => $user
+                ? ($user->can('users.manage') || $user->isAdmin())
+                : false,
             'app' => [
                 'name' => config('unitra.name'),
                 'currency' => config('unitra.currency'),

@@ -22,6 +22,13 @@ function cleanParams(
     ) as Record<string, string | number>;
 }
 
+function filtersSignature(filters: TableFilters): string {
+    const keys = Object.keys(filters).sort();
+    return JSON.stringify(
+        Object.fromEntries(keys.map((key) => [key, filters[key] ?? ''])),
+    );
+}
+
 export function useServerTable({
     url,
     paginated,
@@ -42,12 +49,16 @@ export function useServerTable({
     const filtersRef = useRef(localFilters);
     filtersRef.current = localFilters;
 
+    const incomingSignature = filtersSignature(filters);
+    const onlyKey = only?.join('|') ?? '';
+
     useEffect(() => {
-        setSearchInput(filters[searchKey] ?? '');
-        const next = { ...filters };
+        const parsed = JSON.parse(incomingSignature) as TableFilters;
+        setSearchInput(parsed[searchKey] ?? '');
+        const next = { ...parsed };
         delete next[searchKey];
         setLocalFilters(next);
-    }, [filters, searchKey]);
+    }, [incomingSignature, searchKey]);
 
     const visit = useCallback(
         (params: Record<string, string | number | undefined | null>) => {
@@ -55,10 +66,12 @@ export function useServerTable({
                 preserveState: true,
                 replace: true,
                 preserveScroll: true,
-                ...(only ? { only } : {}),
+                ...(onlyKey
+                    ? { only: onlyKey.split('|') }
+                    : {}),
             });
         },
-        [only, url],
+        [onlyKey, url],
     );
 
     const apply = useCallback(

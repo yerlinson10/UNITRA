@@ -25,4 +25,6 @@ return [
         'danger' => '#DC4444',
     ],
 
+    'warranty_policy' => 'La garantía cubre defectos de fabricación durante el período indicado por cada equipo. No cubre daños por agua, golpes, mal uso, intervención de terceros ni accesorios. Para reclamos presente esta factura e IMEI del equipo.',
+
 ];

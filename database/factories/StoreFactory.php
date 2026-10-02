@@ -18,6 +18,7 @@ class StoreFactory extends Factory
             'address' => fake()->address(),
             'phone' => fake()->phoneNumber(),
             'is_active' => true,
+            'default_print_format' => '80mm',
         ];
     }
 }
