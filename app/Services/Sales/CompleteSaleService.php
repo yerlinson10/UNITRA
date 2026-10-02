@@ -2,6 +2,7 @@
 
 namespace App\Services\Sales;
 
+use App\Enums\CashSessionStatus;
 use App\Enums\EcfStatus;
 use App\Enums\InventoryOrigin;
 use App\Enums\InventoryStatus;
@@ -9,6 +10,7 @@ use App\Enums\InvoiceStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\SellerIdType;
 use App\Jobs\GenerateInvoicePdf;
+use App\Models\CashSession;
 use App\Models\InventoryItem;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
@@ -46,6 +48,7 @@ class CompleteSaleService
      *         seller_id_number: string,
      *         seller_phone: string,
      *         min_sale_price?: float|int|string|null,
+     *         regular_sale_price?: float|int|string|null,
      *         notes?: string|null
      *     }>
      * }  $data
@@ -60,6 +63,16 @@ class CompleteSaleService
 
         if (empty($data['items'])) {
             throw new InvalidArgumentException('La venta debe incluir al menos un equipo.');
+        }
+
+        $openSession = CashSession::query()
+            ->where('store_id', $user->store_id)
+            ->where('status', CashSessionStatus::Open)
+            ->latest('opened_at')
+            ->first();
+
+        if (! $openSession) {
+            throw new InvalidArgumentException('No hay una sesión de caja abierta. Ábrela antes de vender.');
         }
 
         $invoice = DB::transaction(function () use ($user, $data) {
@@ -154,6 +167,7 @@ class CompleteSaleService
                     'battery_health' => $tradeInData['battery_health'] ?? null,
                     'cost' => $tradeInData['credited_value'],
                     'min_sale_price' => $tradeInData['min_sale_price'] ?? null,
+                    'regular_sale_price' => $tradeInData['regular_sale_price'] ?? null,
                     'purchased_at' => now()->toDateString(),
                     'warranty_months' => $tradeInData['warranty_months'] ?? 3,
                     'warranty_expires_at' => $tradeInData['warranty_expires_at'] ?? null,
@@ -179,16 +193,12 @@ class CompleteSaleService
             }
 
             if ($amountPaid > 0) {
-                try {
-                    $this->cashMovementRecorder->recordSale(
-                        $user,
-                        $amountPaid,
-                        $paymentMethod,
-                        $invoice,
-                    );
-                } catch (InvalidArgumentException) {
-                    // Sale can complete without open cash session; cashier can reconcile later.
-                }
+                $this->cashMovementRecorder->recordSale(
+                    $user,
+                    $amountPaid,
+                    $paymentMethod,
+                    $invoice,
+                );
             }
 
             return $invoice->load([

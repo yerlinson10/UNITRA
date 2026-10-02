@@ -51,6 +51,7 @@ export interface InventoryItem {
     battery_health?: number | null;
     min_sale_price?: number | null;
     min_price?: number | null;
+    regular_sale_price?: number | null;
     cost?: number | null;
     purchased_at?: string | null;
     warranty_months?: number | null;

@@ -2,10 +2,11 @@
 
 namespace App\Http\Resources;
 
+use App\Models\InventoryItem;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin \App\Models\InventoryItem */
+/** @mixin InventoryItem */
 class InventoryItemResource extends JsonResource
 {
     public function toArray(Request $request): array
@@ -31,6 +32,7 @@ class InventoryItemResource extends JsonResource
             'battery_health' => $this->battery_health,
             'min_sale_price' => $this->min_sale_price,
             'min_price' => $this->min_sale_price,
+            'regular_sale_price' => $this->regular_sale_price,
             'purchased_at' => $this->purchased_at?->toDateString(),
             'warranty_months' => $this->warranty_months,
             'sold_at' => $this->sold_at?->toIso8601String(),

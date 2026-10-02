@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\InventoryStatus;
+use App\Enums\CashSessionStatus;
 use App\Http\Requests\Sales\CompleteSaleRequest;
-use App\Http\Resources\InventoryItemResource;
-use App\Models\InventoryItem;
+use App\Models\CashSession;
 use App\Models\Product;
+use App\Services\Pos\PosAvailableInventoryCache;
+use App\Services\Pos\PosLookupService;
 use App\Services\Sales\CompleteSaleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -26,25 +27,42 @@ class PosController extends Controller
     {
         $storeId = $request->user()->store_id;
 
-        $available = InventoryItem::query()
-            ->with('product')
-            ->when($storeId, fn ($q) => $q->where('store_id', $storeId))
-            ->available()
-            ->latest()
-            ->limit(50)
-            ->get();
-
-        $Marcas = Product::query()
+        $products = Product::query()
             ->when($storeId, fn ($q) => $q->where('store_id', $storeId))
             ->orderBy('name')
             ->get(['id', 'name', 'brand', 'model', 'storage', 'color']);
 
+        $cashSessionOpen = $storeId
+            ? CashSession::query()
+                ->where('store_id', $storeId)
+                ->where('status', CashSessionStatus::Open)
+                ->exists()
+            : false;
+
         return Inertia::render('Pos/Index', [
-            'availableItems' => InventoryItemResource::collection($available)->resolve(),
-            'products' => $Marcas,
-            'Marcas' => $Marcas,
+            'products' => $products,
             'canViewCosts' => $request->user()->canViewCosts(),
+            'cashSessionOpen' => $cashSessionOpen,
         ]);
+    }
+
+    public function available(
+        Request $request,
+        PosAvailableInventoryCache $cache,
+    ): JsonResponse {
+        $data = $request->validate([
+            'page' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $page = (int) ($data['page'] ?? 1);
+        $payload = $cache->page(
+            $request->user()->store_id,
+            $page,
+            $request->user(),
+            $request,
+        );
+
+        return response()->json($payload);
     }
 
     public function store(
@@ -64,7 +82,7 @@ class PosController extends Controller
             ->with('success', "Venta {$invoice->number} completada.");
     }
 
-    public function lookupImei(Request $request): JsonResponse
+    public function lookupImei(Request $request, PosLookupService $lookup): JsonResponse
     {
         $data = $request->validate([
             'q' => ['nullable', 'string', 'max:120'],
@@ -72,55 +90,16 @@ class PosController extends Controller
         ]);
 
         $query = trim((string) ($data['q'] ?? $data['imei'] ?? ''));
+        $payload = $lookup->search($request->user(), $query, $request);
 
         if ($query === '') {
-            return response()->json(['message' => 'Indica un término de búsqueda.'], 422);
+            return response()->json($payload, 422);
         }
 
-        $storeId = $request->user()->store_id;
-
-        $items = InventoryItem::query()
-            ->with('product')
-            ->when($storeId, fn ($q) => $q->where('store_id', $storeId))
-            ->where('status', InventoryStatus::Available)
-            ->where(function ($q) use ($query) {
-                $q->where('imei', 'like', "%{$query}%")
-                    ->orWhere('serial', 'like', "%{$query}%")
-                    ->orWhere('condition_grade', 'like', "%{$query}%")
-                    ->orWhereHas('product', function ($p) use ($query) {
-                        $p->where('name', 'like', "%{$query}%")
-                            ->orWhere('brand', 'like', "%{$query}%")
-                            ->orWhere('model', 'like', "%{$query}%")
-                            ->orWhere('storage', 'like', "%{$query}%")
-                            ->orWhere('color', 'like', "%{$query}%");
-                    });
-            })
-            ->orderBy('imei')
-            ->limit(20)
-            ->get();
-
-        if ($items->isEmpty()) {
-            return response()->json([
-                'message' => 'Sin resultados disponibles.',
-                'results' => [],
-            ], 404);
+        if (($payload['results'] ?? []) === [] && ! ($payload['exact'] ?? false)) {
+            return response()->json($payload, 404);
         }
 
-        $results = $items->map(fn (InventoryItem $item) => (new InventoryItemResource($item))->resolve())->values();
-
-        // Exact IMEI match → single result convenience for scanners
-        $exact = $items->firstWhere('imei', $query);
-        if ($exact) {
-            return response()->json([
-                'exact' => true,
-                'item' => (new InventoryItemResource($exact))->resolve(),
-                'results' => $results,
-            ]);
-        }
-
-        return response()->json([
-            'exact' => false,
-            'results' => $results,
-        ]);
+        return response()->json($payload);
     }
 }

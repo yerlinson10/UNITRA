@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\InventoryItem;
 use App\Models\Invoice;
+use App\Observers\InventoryItemObserver;
 use App\Policies\InventoryItemPolicy;
 use App\Policies\InvoicePolicy;
 use Illuminate\Support\Facades\Gate;
@@ -20,6 +21,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
+
+        InventoryItem::observe(InventoryItemObserver::class);
 
         Gate::policy(InventoryItem::class, InventoryItemPolicy::class);
         Gate::policy(Invoice::class, InvoicePolicy::class);

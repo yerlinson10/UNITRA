@@ -37,6 +37,7 @@ class CreatePurchaseService
      *         battery_health?: int|null,
      *         cost: float|int|string,
      *         min_sale_price?: float|int|string|null,
+     *         regular_sale_price?: float|int|string|null,
      *         notes?: string|null
      *     }>
      * }  $data
@@ -92,6 +93,7 @@ class CreatePurchaseService
                     'battery_health' => $itemData['battery_health'] ?? null,
                     'cost' => $itemData['cost'],
                     'min_sale_price' => $itemData['min_sale_price'] ?? null,
+                    'regular_sale_price' => $itemData['regular_sale_price'] ?? null,
                     'purchased_at' => $purchase->created_at?->toDateString() ?? now()->toDateString(),
                     'warranty_months' => $itemData['warranty_months'] ?? 3,
                     'warranty_expires_at' => $itemData['warranty_expires_at'] ?? null,

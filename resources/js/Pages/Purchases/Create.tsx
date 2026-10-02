@@ -26,6 +26,7 @@ type Line = {
     battery_health: string;
     cost: string;
     min_sale_price: string;
+    regular_sale_price: string;
     notes: string;
 };
 
@@ -48,6 +49,7 @@ const emptyLine = (): Line => ({
     battery_health: '',
     cost: '',
     min_sale_price: '',
+    regular_sale_price: '',
     notes: '',
 });
 
@@ -110,7 +112,21 @@ export default function PurchasesCreate({ products = [] }: Props) {
             (sum, line) => sum + (Number(line.min_sale_price) || 0),
             0,
         );
-        return { unitCount, totalCost, hasMinPrices, totalMinSale };
+        const hasRegularPrices = data.items.some(
+            (line) => line.regular_sale_price !== '',
+        );
+        const totalRegularSale = data.items.reduce(
+            (sum, line) => sum + (Number(line.regular_sale_price) || 0),
+            0,
+        );
+        return {
+            unitCount,
+            totalCost,
+            hasMinPrices,
+            totalMinSale,
+            hasRegularPrices,
+            totalRegularSale,
+        };
     }, [data.items]);
 
     const submit: FormEventHandler = (e) => {
@@ -128,6 +144,9 @@ export default function PurchasesCreate({ products = [] }: Props) {
                 cost: Number(line.cost) || 0,
                 min_sale_price: line.min_sale_price
                     ? Number(line.min_sale_price)
+                    : null,
+                regular_sale_price: line.regular_sale_price
+                    ? Number(line.regular_sale_price)
                     : null,
                 notes: line.notes || null,
             })),
@@ -297,6 +316,7 @@ export default function PurchasesCreate({ products = [] }: Props) {
                                 Boolean(line.condition_grade) ||
                                 Boolean(line.battery_health) ||
                                 Boolean(line.min_sale_price) ||
+                                Boolean(line.regular_sale_price) ||
                                 Boolean(line.notes);
 
                             return (
@@ -501,6 +521,21 @@ export default function PurchasesCreate({ products = [] }: Props) {
                                                         />
                                                     </div>
                                                     <div>
+                                                        <InputLabel value="Precio regular" />
+                                                        <NumberInput
+                                                            className="unitra-input mt-1 block w-full"
+                                                            value={line.regular_sale_price}
+                                                            onValueChange={(value) =>
+                                                                updateLine(
+                                                                    index,
+                                                                    'regular_sale_price',
+                                                                    value,
+                                                                )
+                                                            }
+                                                            placeholder="0.00"
+                                                        />
+                                                    </div>
+                                                    <div>
                                                         <InputLabel value="Notas del equipo" />
                                                         <TextInput
                                                             className="mt-1 block w-full"
@@ -553,6 +588,17 @@ export default function PurchasesCreate({ products = [] }: Props) {
                                     <Money amount={totals.totalCost} currency="DOP" />
                                 </dd>
                             </div>
+                            {totals.hasRegularPrices && (
+                                <div className="flex justify-between gap-3 border-t border-[#E3E5E0] pt-3">
+                                    <dt className="text-[#6B7069]">Suma precio regular</dt>
+                                    <dd className="font-medium tabular-nums">
+                                        <Money
+                                            amount={totals.totalRegularSale}
+                                            currency="DOP"
+                                        />
+                                    </dd>
+                                </div>
+                            )}
                             {totals.hasMinPrices && (
                                 <div className="flex justify-between gap-3 border-t border-[#E3E5E0] pt-3">
                                     <dt className="text-[#6B7069]">Suma precio mín.</dt>

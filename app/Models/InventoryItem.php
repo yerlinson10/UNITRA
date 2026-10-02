@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\InventoryOrigin;
 use App\Enums\InventoryStatus;
+use Database\Factories\InventoryItemFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class InventoryItem extends Model
 {
-    /** @use HasFactory<\Database\Factories\InventoryItemFactory> */
+    /** @use HasFactory<InventoryItemFactory> */
     use HasFactory;
 
     protected $fillable = [
@@ -24,6 +25,7 @@ class InventoryItem extends Model
         'battery_health',
         'cost',
         'min_sale_price',
+        'regular_sale_price',
         'purchased_at',
         'warranty_months',
         'sold_at',
@@ -40,6 +42,7 @@ class InventoryItem extends Model
             'battery_health' => 'integer',
             'cost' => 'decimal:2',
             'min_sale_price' => 'decimal:2',
+            'regular_sale_price' => 'decimal:2',
             'purchased_at' => 'date',
             'warranty_months' => 'integer',
             'sold_at' => 'datetime',

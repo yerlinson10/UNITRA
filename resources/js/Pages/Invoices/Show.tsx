@@ -36,6 +36,12 @@ export default function InvoicesShow({ invoice, auth }: Props) {
                 }
                 actions={
                     <div className="flex flex-wrap gap-2">
+                        <Link
+                            href={route('pos.index')}
+                            className="inline-flex items-center gap-1.5 rounded-md bg-[#B8E34B] px-3 py-2 text-sm font-semibold text-[#111315] hover:opacity-90"
+                        >
+                            Nueva venta
+                        </Link>
                         {invoice.pdf_url && (
                             <a
                                 href={invoice.pdf_url}

@@ -6,6 +6,7 @@ use App\Enums\PaymentMethod;
 use App\Enums\SellerIdType;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class CompleteSaleRequest extends FormRequest
 {
@@ -27,6 +28,7 @@ class CompleteSaleRequest extends FormRequest
             'items.*.inventory_item_id' => [
                 'required',
                 'integer',
+                'distinct',
                 Rule::exists('inventory_items', 'id')->where(fn ($q) => $q->where('store_id', $storeId)),
             ],
             'items.*.sale_price' => ['required', 'numeric', 'min:0'],
@@ -51,7 +53,63 @@ class CompleteSaleRequest extends FormRequest
             'trade_ins.*.seller_id_number' => ['required_with:trade_ins', 'string', 'max:50'],
             'trade_ins.*.seller_phone' => ['required_with:trade_ins', 'string', 'max:30'],
             'trade_ins.*.min_sale_price' => ['nullable', 'numeric', 'min:0'],
+            'trade_ins.*.regular_sale_price' => ['nullable', 'numeric', 'min:0'],
             'trade_ins.*.notes' => ['nullable', 'string', 'max:1000'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            foreach ($this->input('trade_ins', []) as $index => $tradeIn) {
+                if (! is_array($tradeIn)) {
+                    continue;
+                }
+
+                $minKey = "trade_ins.{$index}.min_sale_price";
+                $regularKey = "trade_ins.{$index}.regular_sale_price";
+
+                if ($validator->errors()->hasAny([$minKey, $regularKey])) {
+                    continue;
+                }
+
+                $min = $tradeIn['min_sale_price'] ?? null;
+                $regular = $tradeIn['regular_sale_price'] ?? null;
+
+                if ($min === null || $min === '' || $regular === null || $regular === '') {
+                    continue;
+                }
+
+                if ((float) $regular < (float) $min) {
+                    $validator->errors()->add(
+                        $regularKey,
+                        'El precio regular no puede ser menor que el precio mínimo.',
+                    );
+                }
+            }
+
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            if (! $this->filled('amount_paid')) {
+                return;
+            }
+
+            $subtotal = collect($this->input('items', []))
+                ->sum(fn (array $item): float => (float) ($item['sale_price'] ?? 0));
+
+            $tradeInCredit = collect($this->input('trade_ins', []))
+                ->sum(fn (array $tradeIn): float => (float) ($tradeIn['credited_value'] ?? 0));
+
+            $amountDue = max(0, $subtotal - $tradeInCredit);
+
+            if ((float) $this->input('amount_paid') < $amountDue) {
+                $validator->errors()->add(
+                    'amount_paid',
+                    'El monto pagado no puede ser menor al monto a pagar.',
+                );
+            }
+        });
     }
 }

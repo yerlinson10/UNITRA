@@ -5,6 +5,7 @@ namespace App\Http\Requests\Purchases;
 use App\Enums\SellerIdType;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StorePurchaseRequest extends FormRequest
 {
@@ -40,7 +41,40 @@ class StorePurchaseRequest extends FormRequest
             'items.*.battery_health' => ['nullable', 'integer', 'min:0', 'max:100'],
             'items.*.cost' => ['required', 'numeric', 'min:0'],
             'items.*.min_sale_price' => ['nullable', 'numeric', 'min:0'],
+            'items.*.regular_sale_price' => ['nullable', 'numeric', 'min:0'],
             'items.*.notes' => ['nullable', 'string', 'max:1000'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            foreach ($this->input('items', []) as $index => $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $minKey = "items.{$index}.min_sale_price";
+                $regularKey = "items.{$index}.regular_sale_price";
+
+                if ($validator->errors()->hasAny([$minKey, $regularKey])) {
+                    continue;
+                }
+
+                $min = $item['min_sale_price'] ?? null;
+                $regular = $item['regular_sale_price'] ?? null;
+
+                if ($min === null || $min === '' || $regular === null || $regular === '') {
+                    continue;
+                }
+
+                if ((float) $regular < (float) $min) {
+                    $validator->errors()->add(
+                        $regularKey,
+                        'El precio regular no puede ser menor que el precio mínimo.',
+                    );
+                }
+            }
+        });
     }
 }

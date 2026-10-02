@@ -101,6 +101,7 @@ export default function InventoryIndex({
         battery_health: '',
         cost: '',
         min_sale_price: '',
+        regular_sale_price: '',
         purchased_at: todayDate(),
         warranty_months: '3',
         warranty_expires_at: '',
@@ -116,6 +117,7 @@ export default function InventoryIndex({
         battery_health: '',
         cost: '',
         min_sale_price: '',
+        regular_sale_price: '',
         purchased_at: todayDate(),
         warranty_months: '3',
         warranty_expires_at: '',
@@ -178,6 +180,10 @@ export default function InventoryIndex({
                     : item.min_price != null
                       ? String(item.min_price)
                       : '',
+            regular_sale_price:
+                item.regular_sale_price != null
+                    ? String(item.regular_sale_price)
+                    : '',
             purchased_at: item.purchased_at
                 ? String(item.purchased_at).slice(0, 10)
                 : todayDate(),
@@ -237,6 +243,9 @@ export default function InventoryIndex({
                     min_sale_price: form.min_sale_price
                         ? Number(form.min_sale_price)
                         : null,
+                    regular_sale_price: form.regular_sale_price
+                        ? Number(form.regular_sale_price)
+                        : null,
                     ...warrantyFields,
                     notes: form.notes || null,
                     origin: form.origin,
@@ -257,6 +266,9 @@ export default function InventoryIndex({
                 cost: Number(form.cost) || 0,
                 min_sale_price: form.min_sale_price
                     ? Number(form.min_sale_price)
+                    : null,
+                regular_sale_price: form.regular_sale_price
+                    ? Number(form.regular_sale_price)
                     : null,
                 ...warrantyFields,
                 notes: form.notes || null,
@@ -289,6 +301,9 @@ export default function InventoryIndex({
                 : undefined,
             min_sale_price: form.min_sale_price
                 ? Number(form.min_sale_price)
+                : null,
+            regular_sale_price: form.regular_sale_price
+                ? Number(form.regular_sale_price)
                 : null,
             purchased_at: form.purchased_at,
             warranty_months:
@@ -374,6 +389,7 @@ export default function InventoryIndex({
                             <th>Garantía</th>
                             <th>Vendido</th>
                             <th>Estado</th>
+                            <th>Precio regular</th>
                             <th>Precio mín.</th>
                             {canViewCosts && <th>Costo</th>}
                             <th className="text-right">Ver</th>
@@ -401,6 +417,9 @@ export default function InventoryIndex({
                                 </td>
                                 <td>
                                     <StatusBadge status={item.status as InventoryStatus} />
+                                </td>
+                                <td>
+                                    <Money amount={item.regular_sale_price ?? null} />
                                 </td>
                                 <td>
                                     <Money
@@ -622,6 +641,24 @@ export default function InventoryIndex({
                                         onValueChange={(value) =>
                                             createForm.setData('min_sale_price', value)
                                         }
+                                    />
+                                    <InputError
+                                        message={createForm.errors.min_sale_price}
+                                        className="mt-1"
+                                    />
+                                </div>
+                                <div>
+                                    <InputLabel value="Precio regular" />
+                                    <NumberInput
+                                        className="mt-1 block w-full"
+                                        value={createForm.data.regular_sale_price}
+                                        onValueChange={(value) =>
+                                            createForm.setData('regular_sale_price', value)
+                                        }
+                                    />
+                                    <InputError
+                                        message={createForm.errors.regular_sale_price}
+                                        className="mt-1"
                                     />
                                 </div>
                                 <div>
@@ -857,6 +894,24 @@ export default function InventoryIndex({
                                             onValueChange={(value) =>
                                                 editForm.setData('min_sale_price', value)
                                             }
+                                        />
+                                        <InputError
+                                            message={editForm.errors.min_sale_price}
+                                            className="mt-1"
+                                        />
+                                    </div>
+                                    <div>
+                                        <InputLabel value="Precio regular" />
+                                        <NumberInput
+                                            className="mt-1 block w-full"
+                                            value={editForm.data.regular_sale_price}
+                                            onValueChange={(value) =>
+                                                editForm.setData('regular_sale_price', value)
+                                            }
+                                        />
+                                        <InputError
+                                            message={editForm.errors.regular_sale_price}
+                                            className="mt-1"
                                         />
                                     </div>
                                     <div>

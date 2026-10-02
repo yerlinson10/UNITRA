@@ -6,6 +6,7 @@ use App\Enums\InventoryStatus;
 use App\Enums\InvoiceStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\UserRole;
+use App\Models\CashSession;
 use App\Models\InventoryItem;
 use App\Models\Product;
 use App\Models\Store;
@@ -67,6 +68,11 @@ class InventoryWarrantyDatesTest extends TestCase
             'min_sale_price' => 100,
         ]);
 
+        CashSession::factory()->create([
+            'store_id' => $store->id,
+            'user_id' => $cashier->id,
+        ]);
+
         $invoice = app(CompleteSaleService::class)->handle($cashier, [
             'payment_method' => PaymentMethod::Cash->value,
             'items' => [
@@ -108,6 +114,11 @@ class InventoryWarrantyDatesTest extends TestCase
             'min_sale_price' => 100,
         ]);
 
+        CashSession::factory()->create([
+            'store_id' => $store->id,
+            'user_id' => $cashier->id,
+        ]);
+
         app(CompleteSaleService::class)->handle($cashier, [
             'payment_method' => PaymentMethod::Cash->value,
             'items' => [
@@ -143,6 +154,11 @@ class InventoryWarrantyDatesTest extends TestCase
             'warranty_months' => 3,
             'warranty_expires_at' => null,
             'min_sale_price' => 100,
+        ]);
+
+        CashSession::factory()->create([
+            'store_id' => $store->id,
+            'user_id' => $admin->id,
         ]);
 
         $invoice = app(CompleteSaleService::class)->handle($admin, [

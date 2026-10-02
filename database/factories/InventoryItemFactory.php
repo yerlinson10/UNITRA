@@ -16,6 +16,8 @@ class InventoryItemFactory extends Factory
 {
     public function definition(): array
     {
+        $minSalePrice = fake()->randomFloat(2, 150, 800);
+
         return [
             'store_id' => Store::factory(),
             'product_id' => Product::factory(),
@@ -24,7 +26,8 @@ class InventoryItemFactory extends Factory
             'condition_grade' => fake()->randomElement(['A', 'B', 'C']),
             'battery_health' => fake()->numberBetween(80, 100),
             'cost' => fake()->randomFloat(2, 100, 800),
-            'min_sale_price' => fake()->randomFloat(2, 150, 1000),
+            'min_sale_price' => $minSalePrice,
+            'regular_sale_price' => fake()->randomFloat(2, (float) $minSalePrice, 1200),
             'purchased_at' => now()->toDateString(),
             'warranty_months' => 3,
             'sold_at' => null,

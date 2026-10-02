@@ -8,6 +8,7 @@ use App\Enums\InvoiceStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\SellerIdType;
 use App\Enums\UserRole;
+use App\Models\CashSession;
 use App\Models\InventoryItem;
 use App\Models\Invoice;
 use App\Models\Product;
@@ -51,6 +52,11 @@ class CompleteSaleWithTradeInTest extends TestCase
             'cost' => 400.00,
             'min_sale_price' => 500.00,
             'status' => InventoryStatus::Available,
+        ]);
+
+        CashSession::factory()->create([
+            'store_id' => $store->id,
+            'user_id' => $cashier->id,
         ]);
 
         $invoice = app(CompleteSaleService::class)->handle($cashier, [
